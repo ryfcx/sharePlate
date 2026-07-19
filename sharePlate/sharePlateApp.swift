@@ -10,23 +10,42 @@ import SwiftData
 
 @main
 struct sharePlateApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
+    private let container: ModelContainer
+    private let session: SessionContext
+    @State private var location = LocationManager()
+    @State private var store: LocalDataStore
+    @State private var auth: SupabaseAuthService
+
+    init() {
+        FontRegistrar.registerBundledFonts()
+        AppAppearance.configure()
+
+        let container: ModelContainer
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            container = try ModelContainerFactory.make()
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }
-    }()
+
+        let session = SessionContext()
+        self.container = container
+        self.session = session
+        _store = State(initialValue: LocalDataStore(context: container.mainContext, session: session))
+        _auth = State(initialValue: SupabaseAuthService(session: session))
+
+        PushNotificationService.shared.configure(session: session)
+    }
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AppRootView()
+                .environment(location)
+                .environment(session)
+                .environment(store)
+                .environment(auth)
         }
-        .modelContainer(sharedModelContainer)
+        .modelContainer(container)
     }
 }

@@ -1,0 +1,42 @@
+name: GCFD food location sync
+
+on:
+  schedule:
+    # 9:00 AM UTC daily. Adjust to whatever time works — GCFD's own data
+    # doesn't change fast enough for exact timing to matter.
+    - cron: "0 9 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run GCFD sync
+        working-directory: foodAPI
+        env:
+          # Only the service role key is secret — the project URL is public
+          # (it's already embedded in the shipped app) and defaults correctly
+          # in the script without this being set.
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python gcfd_food_sync.py -v
+
+      - name: Commit refreshed database if it changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- sharePlate/Resources/gcfd_food.db foodAPI/gcfd_food.db; then
+            echo "No changes to commit."
+          else
+            git add sharePlate/Resources/gcfd_food.db foodAPI/gcfd_food.db
+            git commit -m "chore: refresh GCFD food location data"
+            git push
+          fi
