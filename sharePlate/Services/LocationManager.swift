@@ -31,6 +31,16 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways
     }
 
+    var isAuthorizedAlways: Bool {
+        authorizationStatus == .authorizedAlways
+    }
+
+    /// Whether it's worth showing the "turn on Always Allow" prompt —
+    /// only once the user has already granted When In Use.
+    var canRequestAlways: Bool {
+        authorizationStatus == .authorizedWhenInUse
+    }
+
     var isLocationAvailable: Bool {
         isAuthorized && userLocation != nil
     }
@@ -72,9 +82,19 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         startUpdatingIfAuthorized()
     }
 
+    /// Prompts to upgrade from "While Using" to "Always" — lets nearby-alert
+    /// notifications keep working (and location stay fresh) while the app
+    /// isn't open. Only meaningful after When In Use was already granted.
+    func requestAlwaysAuthorization() {
+        manager.requestAlwaysAuthorization()
+    }
+
     private func startUpdatingIfAuthorized() {
         guard isAuthorized else { return }
         manager.startUpdatingLocation()
+        if authorizationStatus == .authorizedAlways {
+            manager.startMonitoringSignificantLocationChanges()
+        }
     }
 
     /// Distance in meters from the user to a coordinate, or nil if unknown.

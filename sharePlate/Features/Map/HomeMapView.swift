@@ -12,6 +12,7 @@ import MapKit
 struct HomeMapView: View {
     @Environment(LocationManager.self) private var location
     @Environment(LocalDataStore.self) private var store
+    @Environment(SessionContext.self) private var session
     @Query private var resources: [FoodResource]
     @Query(sort: \FoodListing.createdAt, order: .reverse) private var listings: [FoodListing]
 
@@ -126,6 +127,7 @@ struct HomeMapView: View {
                 centerIfNeeded()
                 refreshLocationCaches(forceResort: true)
                 Task { await openPendingHandoffIfNeeded() }
+                Task { await NearbyAlertService.refreshPantryOpenSchedule(resources: resources, near: location.mapCenter) }
             }
             .onChange(of: notice.pendingHandoffListingRemoteID) { _, _ in
                 Task { await openPendingHandoffIfNeeded() }
@@ -140,15 +142,18 @@ struct HomeMapView: View {
             }
             .onChange(of: location.userLocation?.latitude) { _, _ in
                 refreshLocationCachesIfMoved()
+                Task { await NearbyAlertService.refreshPantryOpenSchedule(resources: resources, near: location.mapCenter) }
             }
             .onChange(of: browseSettingsToken) { _, _ in
                 refreshLocationCaches(forceResort: false)
             }
             .onChange(of: listingsCatalogToken) { _, _ in
                 refreshLocationCaches(forceResort: false, listingsOnly: true)
+                Task { await NearbyAlertService.checkForNewNearbyListings(listings, near: location.mapCenter, excludingDeviceID: session.identity) }
             }
             .onChange(of: resourcesBrowseToken) { _, _ in
                 refreshLocationCaches(forceResort: false, resourcesOnly: true)
+                Task { await NearbyAlertService.refreshPantryOpenSchedule(resources: resources, near: location.mapCenter) }
             }
             .onChange(of: timeWindow) { _, window in
                 if window == .tomorrow {
@@ -370,7 +375,10 @@ struct HomeMapView: View {
             }
 
             ForEach(mapListings) { listing in
-                Annotation("Near \(listing.areaLabel)", coordinate: listing.publicCoordinate) {
+                Annotation(
+                    listing.isPantryListing ? listing.areaLabel : "Near \(listing.areaLabel)",
+                    coordinate: listing.publicCoordinate
+                ) {
                     Button {
                         openDetail(.listing(listing.persistentModelID))
                     } label: {

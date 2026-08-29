@@ -18,4 +18,26 @@ xcuserdata/
 __pycache__/
 *.pyc
 
+# Secrets and signing credentials
+.env
+.env.*
+!.env.example
+*.p8
+*.p12
+*.pem
+*.key
+*.mobileprovision
+
 # CocoaPods / SPM (project uses SPM; keep Package.resolved tracked for reproducible builds)
+
+# Local AI handoff / session notes
+/HANDOFF.md
+/SESSION_SUMMARY.md
+/.claude/
+
+# Local source assets and duplicate downloads
+/0xProto_2_502/
+/foodAPI.zip
+/gcfd_food.db
+/sharePlateLogo.png
+/ChatGPT Image*.png

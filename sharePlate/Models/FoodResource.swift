@@ -21,6 +21,17 @@ final class FoodResource {
     var hoursData: Data?
     /// JSON-encoded `[ServiceHours]` with per-program schedules and notes.
     var serviceHoursData: Data?
+    /// GCFD's stable id for this location (nil for the curated fallback seed,
+    /// which can't be claimed). Matches `PantryClaim.gcfdLocationID`.
+    var gcfdLocationID: Int?
+
+    // MARK: - Pantry-manager overlay
+    // Denormalized from `PantryClaim` and reapplied after every dataset
+    // resync (which wipes and reinserts this table) — see
+    // `LocalDataStore.reapplyPantryClaimsToResources()`.
+    var managedByUserID: String?
+    var isTemporarilyClosed: Bool = false
+    var pantryClosedNote: String?
 
     init(
         name: String,
@@ -32,7 +43,8 @@ final class FoodResource {
         summary: String,
         type: ResourceType,
         openingIntervals: [OpeningInterval] = [],
-        serviceHours: [ServiceHours] = []
+        serviceHours: [ServiceHours] = [],
+        gcfdLocationID: Int? = nil
     ) {
         self.name = name
         self.address = address
@@ -44,6 +56,7 @@ final class FoodResource {
         self.typeRaw = type.rawValue
         self.hoursData = openingIntervals.isEmpty ? nil : try? JSONEncoder().encode(openingIntervals)
         self.serviceHoursData = serviceHours.isEmpty ? nil : try? JSONEncoder().encode(serviceHours)
+        self.gcfdLocationID = gcfdLocationID
     }
 
     var openingIntervals: [OpeningInterval] {
@@ -70,6 +83,7 @@ final class FoodResource {
     /// "24 hours" hint in the free-form `hours` string. Returns nil when the
     /// schedule is unknown (e.g. "call for hours").
     func isOpen(at date: Date = Date()) -> Bool? {
+        if isTemporarilyClosed { return false }
         if hours.lowercased().contains("24") { return true }
         let evaluable = openingIntervals.filter { !$0.everyOtherWeek }
         guard !evaluable.isEmpty else { return nil }

@@ -64,6 +64,7 @@ struct RootTabView: View {
             store.seedIfNeeded()
             store.runMaintenance()
             await store.syncListings(force: true)
+            await store.syncPantryClaims()
             HandoffLiveUpdatesService.shared.start(store: store, session: session)
             ListingCatalogSyncService.shared.start(store: store)
             await PushNotificationService.shared.requestAuthorizationAndRegister()
@@ -89,6 +90,7 @@ struct RootTabView: View {
                 store.runMaintenance()
                 Task {
                     await store.syncListings(force: true)
+                    await store.syncPantryClaims()
                     await HandoffLiveUpdatesService.shared.refreshSubscriptions()
                     ListingCatalogSyncService.shared.ensureConnected()
                     await PushNotificationService.shared.uploadTokenIfNeeded()

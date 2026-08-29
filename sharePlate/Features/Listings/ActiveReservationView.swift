@@ -145,9 +145,9 @@ struct ActiveReservationView: View {
             instructionLine(number: 2, title: "Arrive by", value: timeslotText)
             instructionLine(number: 3, title: "Handoff", value: instructions.handoffSpot?.displayName ?? "—")
             if !instructions.providerNote.isEmpty {
-                instructionLine(number: 4, title: "Note", value: instructions.providerNote)
+                translatableInstructionLine(number: 4, title: "Note", value: instructions.providerNote)
             } else if let notes = listing.pickupNotes, !notes.isEmpty {
-                instructionLine(number: 4, title: "Note", value: notes)
+                translatableInstructionLine(number: 4, title: "Note", value: notes)
             }
         }
         .cardStyle()
@@ -172,9 +172,9 @@ struct ActiveReservationView: View {
             }
 
             if !instructions.providerNote.isEmpty {
-                instructionLine(number: 5, title: "Note", value: instructions.providerNote)
+                translatableInstructionLine(number: 5, title: "Note", value: instructions.providerNote)
             } else if let notes = listing.pickupNotes, !notes.isEmpty {
-                instructionLine(number: 5, title: "Note", value: notes)
+                translatableInstructionLine(number: 5, title: "Note", value: notes)
             }
         }
         .cardStyle()
@@ -210,6 +210,24 @@ struct ActiveReservationView: View {
                 Text(value)
                     .font(AppFont.body)
                     .foregroundStyle(Theme.Palette.primaryText)
+            }
+        }
+    }
+
+    /// Same layout as `instructionLine`, for the free-text provider note,
+    /// which can be translated on-device instead of looked up in the catalog.
+    private func translatableInstructionLine(number: Int, title: String, value: String) -> some View {
+        HStack(alignment: .top, spacing: Theme.Spacing.md) {
+            Text("\(number)")
+                .font(AppFont.captionBold)
+                .frame(width: 24, height: 24)
+                .background(Theme.Palette.softFill)
+                .boxBorder()
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Theme.Palette.mutedText)
+                TranslatableText(text: value, font: AppFont.body, color: Theme.Palette.primaryText)
             }
         }
     }

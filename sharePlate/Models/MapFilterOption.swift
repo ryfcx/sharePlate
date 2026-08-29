@@ -16,9 +16,9 @@ enum MapFilterCategory: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .pantry: return "Pantry"
-        case .donor: return "Donor"
-        case .store: return "Store"
+        case .pantry: return String(localized: "Pantry")
+        case .donor: return String(localized: "Donor")
+        case .store: return String(localized: "Store")
         }
     }
 
@@ -51,12 +51,12 @@ enum MapFilterOption: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .pantryFood: return "Food"
-        case .pantryDry: return "Dry"
-        case .donorDropOff: return "Drop off"
-        case .donorPickup: return "Pickup"
-        case .storeGrocery: return "Grocery"
-        case .storeRestaurant: return "Restaurant"
+        case .pantryFood: return String(localized: "Food")
+        case .pantryDry: return String(localized: "Dry")
+        case .donorDropOff: return String(localized: "Drop off")
+        case .donorPickup: return String(localized: "Pickup")
+        case .storeGrocery: return String(localized: "Grocery")
+        case .storeRestaurant: return String(localized: "Restaurant")
         }
     }
 

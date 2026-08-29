@@ -46,6 +46,9 @@ final class FoodListing {
     var maxPackagesPerBooking: Int = 0
     /// Packages still available (0 = same as packageCount until first reserve).
     var packagesRemaining: Int = 0
+    /// Set when this listing was posted by a claimed pantry manager on
+    /// behalf of that pantry, rather than an individual donor.
+    var pantryGCFDLocationID: Int?
 
     /// Initial hold while the picker confirms; extended to pickup deadline once reserved.
     static let reservationHold: TimeInterval = 30 * 60
@@ -76,7 +79,8 @@ final class FoodListing {
         dropOffRadiusMeters: Double? = nil,
         packageCount: Int = 0,
         maxPackagesPerBooking: Int = 0,
-        packagesRemaining: Int = 0
+        packagesRemaining: Int = 0,
+        pantryGCFDLocationID: Int? = nil
     ) {
         self.title = title
         self.details = details
@@ -104,6 +108,7 @@ final class FoodListing {
         self.packageCount = packageCount
         self.maxPackagesPerBooking = maxPackagesPerBooking
         self.packagesRemaining = packagesRemaining
+        self.pantryGCFDLocationID = pantryGCFDLocationID
         if packageCount == 0 {
             syncPackageFieldsFromDetails()
         }
@@ -132,6 +137,15 @@ final class FoodListing {
     }
 
     var isDropOff: Bool { pickupType == .communityFridge }
+
+    /// Short reference code derived from the Supabase row id — shown in
+    /// notifications/receipts so a listing can be referenced without the full UUID.
+    var listingNumber: String {
+        guard let remoteID, let uuid = UUID(uuidString: remoteID) else { return "—" }
+        return "#" + uuid.uuidString.prefix(6).uppercased()
+    }
+
+    var isPantryListing: Bool { pantryGCFDLocationID != nil }
 
     var dropOffRadiusLabel: String? {
         guard isDropOff, let meters = dropOffRadiusMeters else { return nil }
@@ -200,14 +214,14 @@ final class FoodListing {
 
     var packagesLabel: String {
         let count = activeReservedPackageCount
-        return count == 1 ? "1 pack" : "\(count) packs"
+        return count == 1 ? String(localized: "1 pack") : String(localized: "\(count) packs")
     }
 
     static func quantityLabel(packageCount: Int, maxPerBooking: Int) -> String {
         if maxPerBooking >= packageCount {
-            return packageCount == 1 ? "1 package" : "\(packageCount) packages"
+            return packageCount == 1 ? String(localized: "1 package") : String(localized: "\(packageCount) packages")
         }
-        return "\(packageCount) packages · max \(maxPerBooking) each"
+        return String(localized: "\(packageCount) packages · max \(maxPerBooking) each")
     }
 
     var packageSummaryLabel: String {
@@ -275,7 +289,7 @@ final class FoodListing {
     }
 
     var areaLabel: String {
-        area.isEmpty ? "Nearby" : area
+        area.isEmpty ? String(localized: "Nearby") : area
     }
 
     // MARK: - Timing
@@ -302,16 +316,16 @@ final class FoodListing {
 
     var postedRelativeText: String {
         let seconds = Int(Date().timeIntervalSince(createdAt))
-        if seconds < 60 { return "Posted just now" }
+        if seconds < 60 { return String(localized: "Posted just now") }
         let minutes = seconds / 60
-        if minutes < 60 { return "Posted \(minutes) min ago" }
+        if minutes < 60 { return String(localized: "Posted \(minutes) min ago") }
         let hours = minutes / 60
-        if hours < 24 { return "Posted \(hours)h ago" }
-        return "Posted \(hours / 24)d ago"
+        if hours < 24 { return String(localized: "Posted \(hours)h ago") }
+        return String(localized: "Posted \(hours / 24)d ago")
     }
 
     var expiresText: String {
-        "Expires \(pickupDeadline.formatted(date: .omitted, time: .shortened))"
+        String(localized: "Expires \(pickupDeadline.formatted(date: .omitted, time: .shortened))")
     }
 
     // MARK: - Status

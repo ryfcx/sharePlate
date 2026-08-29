@@ -26,13 +26,14 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
         UNUserNotificationCenter.current().delegate = self
     }
 
+    /// Requests local-notification permission (needed for nearby-alert local
+    /// notifications regardless of push) and, only when push is enabled,
+    /// registers for APNs remote notifications too.
     func requestAuthorizationAndRegister() async {
-        guard PushNotificationConfiguration.isEnabled else { return }
-
         let center = UNUserNotificationCenter.current()
         do {
             let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
-            guard granted else { return }
+            guard granted, PushNotificationConfiguration.isEnabled else { return }
             await MainActor.run {
                 UIApplication.shared.registerForRemoteNotifications()
             }

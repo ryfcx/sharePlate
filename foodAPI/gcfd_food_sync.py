@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import html.parser
 import json
 import logging
 import os
@@ -94,6 +95,44 @@ def clean(value: Any) -> Any:
     if isinstance(value, str):
         return value.strip()
     return value
+
+
+class _HTMLTextExtractor(html.parser.HTMLParser):
+    """Turn the small HTML fragments returned by AccessFood into plain text."""
+
+    _BLOCK_TAGS = {
+        "address", "article", "blockquote", "br", "div", "h1", "h2", "h3",
+        "h4", "h5", "h6", "li", "p", "section", "tr",
+    }
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.lower() in self._BLOCK_TAGS:
+            self.parts.append("\n")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() in self._BLOCK_TAGS:
+            self.parts.append("\n")
+
+    def handle_data(self, data: str) -> None:
+        self.parts.append(data)
+
+
+def html_to_text(value: Any) -> Any:
+    """Remove markup while preserving readable paragraph breaks."""
+    value = clean(value)
+    if not isinstance(value, str) or not value:
+        return value
+
+    parser = _HTMLTextExtractor()
+    parser.feed(value)
+    parser.close()
+
+    lines = [" ".join(line.split()) for line in "".join(parser.parts).splitlines()]
+    return "\n".join(line for line in lines if line)
 
 
 def chunked(items: list, size: int) -> Iterable[list]:
@@ -388,7 +427,7 @@ def upsert_location(conn: sqlite3.Connection, loc: dict, run_ts: str) -> None:
             "contact_phone": clean(loc.get("contactPhone")),
             "contact_phone_ext": clean(loc.get("contactPhoneExt")),
             "contact_email": clean(loc.get("contactEmail")),
-            "about_us": clean(loc.get("aboutUs")),
+            "about_us": html_to_text(loc.get("aboutUs")),
             "notes": clean(loc.get("notes")),
             "service_area": clean(loc.get("serviceArea")),
             "service_areas": clean(loc.get("serviceAreas")),

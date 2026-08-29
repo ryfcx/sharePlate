@@ -4,13 +4,20 @@
 //
 
 import SwiftUI
+import SwiftData
 import MapKit
 
 struct ResourceDetailView: View {
     @Environment(LocationManager.self) private var location
+    @Query(sort: \FoodListing.createdAt, order: .reverse) private var allListings: [FoodListing]
     let resource: FoodResource
 
     @State private var showMiniMap = false
+
+    private var pantryListings: [FoodListing] {
+        guard let locationID = resource.gcfdLocationID else { return [] }
+        return allListings.filter { $0.pantryGCFDLocationID == locationID && $0.effectiveStatus == .available }
+    }
 
     var body: some View {
         ScrollView {
@@ -18,7 +25,14 @@ struct ResourceDetailView: View {
                 miniMap
 
                 VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                    TypeBadge(type: resource.type)
+                    HStack(spacing: Theme.Spacing.sm) {
+                        TypeBadge(type: resource.type)
+                        if resource.managedByUserID != nil {
+                            Label("Volunteer-managed", systemImage: "checkmark.seal.fill")
+                                .font(AppFont.caption)
+                                .foregroundStyle(Theme.Palette.primaryGreen)
+                        }
+                    }
                     Text(resource.name)
                         .font(AppFont.title)
                         .foregroundStyle(Theme.Palette.primaryText)
@@ -29,7 +43,15 @@ struct ResourceDetailView: View {
                     }
                 }
 
+                if resource.isTemporarilyClosed {
+                    closedBanner
+                }
+
                 DirectionsButton(coordinate: resource.coordinate, name: resource.name, address: resource.address)
+
+                if !pantryListings.isEmpty {
+                    pantryListingsSection
+                }
 
                 VStack(spacing: Theme.Spacing.lg) {
                     infoRow(icon: "mappin.and.ellipse", title: "Address", value: resource.address)
@@ -58,6 +80,43 @@ struct ResourceDetailView: View {
             Task { @MainActor in
                 await Task.yield()
                 showMiniMap = true
+            }
+        }
+    }
+
+    private var closedBanner: some View {
+        HStack(alignment: .top, spacing: Theme.Spacing.sm) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(Theme.Palette.urgentRed)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Temporarily closed")
+                    .font(AppFont.subheadlineMedium)
+                    .foregroundStyle(Theme.Palette.primaryText)
+                if let note = resource.pantryClosedNote, !note.isEmpty {
+                    Text(note)
+                        .font(AppFont.caption)
+                        .foregroundStyle(Theme.Palette.mutedText)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(Theme.Spacing.md)
+        .background(Theme.Palette.urgentRed.opacity(0.1))
+        .boxBorder(Theme.Palette.urgentRed.opacity(0.3))
+    }
+
+    private var pantryListingsSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            Text("Surplus food from this pantry")
+                .font(AppFont.headline)
+                .foregroundStyle(Theme.Palette.primaryText)
+            VStack(spacing: Theme.Spacing.sm) {
+                ForEach(pantryListings) { listing in
+                    NavigationLink(value: LocationDetail.listing(listing.persistentModelID)) {
+                        ListingCard(listing: listing, distanceText: location.distanceText(to: listing.coordinate))
+                    }
+                    .buttonStyle(PlainRowButtonStyle())
+                }
             }
         }
     }

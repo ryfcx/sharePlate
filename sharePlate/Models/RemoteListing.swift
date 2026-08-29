@@ -29,6 +29,7 @@ struct RemoteListing: Codable, Identifiable {
     let claimedBy: UUID?
     let reservedUntil: Date?
     let waitlistUserIDs: [UUID]
+    let pantryGCFDLocationID: Int?
 
     enum CodingKeys: String, CodingKey {
         case id, title, details, quantity, category, area, latitude, longitude, status
@@ -44,6 +45,7 @@ struct RemoteListing: Codable, Identifiable {
         case claimedBy = "claimed_by"
         case reservedUntil = "reserved_until"
         case waitlistUserIDs = "waitlist_user_ids"
+        case pantryGCFDLocationID = "pantry_gcfd_location_id"
     }
 }
 
@@ -65,6 +67,7 @@ struct RemoteListingInsert: Encodable {
     let contactInstructions: String?
     let status: String
     let postedBy: UUID
+    let pantryGCFDLocationID: Int?
 
     enum CodingKeys: String, CodingKey {
         case id, title, details, quantity, category, area, latitude, longitude, status
@@ -76,6 +79,7 @@ struct RemoteListingInsert: Encodable {
         case pickupNotes = "pickup_notes"
         case contactInstructions = "contact_instructions"
         case postedBy = "posted_by"
+        case pantryGCFDLocationID = "pantry_gcfd_location_id"
     }
 }
 

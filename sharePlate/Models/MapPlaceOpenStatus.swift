@@ -16,9 +16,9 @@ enum MapTimeWindow: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .near: return "Near"
-        case .today: return "Today"
-        case .tomorrow: return "Tomorrow"
+        case .near: return String(localized: "Near")
+        case .today: return String(localized: "Today")
+        case .tomorrow: return String(localized: "Tomorrow")
         }
     }
 
@@ -46,9 +46,9 @@ enum MapPlaceOpenStatus: Hashable {
 
     var legendLabel: String {
         switch self {
-        case .open: return "Open"
-        case .closingSoon: return "Closing soon"
-        case .closed: return "Closed"
+        case .open: return String(localized: "Open")
+        case .closingSoon: return String(localized: "Closing soon")
+        case .closed: return String(localized: "Closed")
         }
     }
 }
@@ -102,6 +102,7 @@ extension FoodResource {
     }
 
     func openStatus(at date: Date = Date(), calendar: Calendar = .current) -> MapPlaceOpenStatus {
+        if isTemporarilyClosed { return .closed }
         if hours.lowercased().contains("24") { return .open }
 
         let evaluable = openingIntervals.filter { !$0.everyOtherWeek }
@@ -120,6 +121,7 @@ extension FoodResource {
 
     /// Preview status for a future day (e.g. Tomorrow tab) — open if hours exist that day.
     func openStatusPreview(on date: Date, calendar: Calendar = .current) -> MapPlaceOpenStatus {
+        if isTemporarilyClosed { return .closed }
         if hours.lowercased().contains("24") { return .open }
         return hasScheduledHours(on: date, calendar: calendar) ? .open : .closed
     }

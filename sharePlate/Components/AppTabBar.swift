@@ -17,10 +17,10 @@ enum AppTab: CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .map: return "Map"
-        case .resources: return "Resources"
-        case .freeFood: return "Food"
-        case .activity: return "Activity"
+        case .map: return String(localized: "Map")
+        case .resources: return String(localized: "Resources")
+        case .freeFood: return String(localized: "Food")
+        case .activity: return String(localized: "Activity")
         }
     }
 

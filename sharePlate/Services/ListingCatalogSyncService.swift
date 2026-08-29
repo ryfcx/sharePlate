@@ -61,6 +61,18 @@ final class ListingCatalogSyncService {
         let client = SupabaseManager.client
         let channel = client.realtimeV2.channel("listing-catalog")
 
+        let insertSub = channel.onPostgresChange(
+            InsertAction.self,
+            schema: "public",
+            table: "listings"
+        ) { [weak self] insert in
+            Task { @MainActor in
+                guard let store = self?.store else { return }
+                guard let remote = try? insert.decodeRecord(as: RemoteListing.self, decoder: SupabaseRealtimeJSON.decoder) else { return }
+                store.applyRemoteListing(remote)
+            }
+        }
+
         let updateSub = channel.onPostgresChange(
             UpdateAction.self,
             schema: "public",
@@ -86,6 +98,7 @@ final class ListingCatalogSyncService {
             }
         }
 
+        subscriptions.append(insertSub)
         subscriptions.append(updateSub)
         subscriptions.append(deleteSub)
         self.channel = channel

@@ -32,9 +32,16 @@ struct ListingDetailView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(listing.title)
-                        .font(AppFont.title)
-                        .foregroundStyle(Theme.Palette.primaryText)
+                    if listing.category == .other {
+                        // Only "Other" listings have a user-typed title —
+                        // every other category's title is already a
+                        // localized category name, not free text.
+                        TranslatableText(text: listing.title, font: AppFont.title, color: Theme.Palette.primaryText)
+                    } else {
+                        Text(listing.title)
+                            .font(AppFont.title)
+                            .foregroundStyle(Theme.Palette.primaryText)
+                    }
                     Text(listing.postedRelativeText)
                         .font(AppFont.caption)
                         .foregroundStyle(Theme.Palette.mutedText)
@@ -133,7 +140,7 @@ struct ListingDetailView: View {
                 infoRow(icon: "mappin.and.ellipse", title: "Pickup address", value: pickupLine)
                 if let notes = listing.pickupNotes, !notes.isEmpty {
                     divider
-                    infoRow(icon: "note.text", title: "Pickup note", value: notes)
+                    translatableInfoRow(icon: "note.text", title: "Pickup note", value: notes)
                 }
             } else {
                 infoRow(icon: "mappin.circle", title: "Approximate area", value: "Near \(listing.areaLabel)")
@@ -175,7 +182,7 @@ struct ListingDetailView: View {
         }
         if let notes = listing.pickupNotes, !notes.isEmpty {
             divider
-            infoRow(icon: "note.text", title: "Note", value: notes)
+            translatableInfoRow(icon: "note.text", title: "Note", value: notes)
         }
     }
 
@@ -337,6 +344,24 @@ struct ListingDetailView: View {
         Rectangle()
             .fill(Theme.Palette.hairline)
             .frame(height: 1)
+    }
+
+    /// Same layout as `infoRow`, but for user-typed free text (notes) that
+    /// can be translated on-device rather than looked up in the catalog.
+    private func translatableInfoRow(icon: String, title: String, value: String) -> some View {
+        HStack(alignment: .top, spacing: Theme.Spacing.md) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .medium))
+                .frame(width: 24)
+                .foregroundStyle(Theme.Palette.mutedText)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Theme.Palette.mutedText)
+                TranslatableText(text: value, font: AppFont.body, color: Theme.Palette.primaryText)
+            }
+            Spacer(minLength: 0)
+        }
     }
 
     private func infoRow(icon: String, title: String, value: String) -> some View {

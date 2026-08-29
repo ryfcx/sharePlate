@@ -9,12 +9,11 @@ import SwiftData
 struct ActivityView: View {
     @Environment(LocalDataStore.self) private var store
     @Environment(SessionContext.self) private var session
-    @Environment(SupabaseAuthService.self) private var auth
     @Environment(LocationManager.self) private var location
     @Query(sort: \FoodListing.createdAt, order: .reverse) private var listings: [FoodListing]
 
     @State private var navigationPath = NavigationPath()
-    @State private var showSignOutConfirm = false
+    @State private var showSettings = false
     @State private var notice = LocalNotice.shared
     @State private var lastOpenedHandoffRemoteID: String?
 
@@ -23,12 +22,6 @@ struct ActivityView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                     bookDetailsSection
-
-                    if let user = auth.currentUser {
-                        activitySection("Account", systemImage: "person.crop.circle.fill") {
-                            accountRow(user)
-                        }
-                    }
 
                     activitySection("My Listings", systemImage: "tray.full.fill") {
                         if myAvailableListings.isEmpty {
@@ -47,9 +40,18 @@ struct ActivityView: View {
             .navigationDestination(for: LocationDetail.self) { detail in
                 LocationDetailScreen(detail: detail)
             }
-            .confirmationDialog("Sign out of SharePlate?", isPresented: $showSignOutConfirm, titleVisibility: .visible) {
-                Button("Sign Out", role: .destructive) { auth.signOut() }
-                Button("Cancel", role: .cancel) {}
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("Settings")
+                }
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
             }
             .onAppear {
                 Task { await openPendingHandoffIfNeeded() }
@@ -114,30 +116,6 @@ struct ActivityView: View {
                 content()
             }
         }
-    }
-
-    private func accountRow(_ user: UserAccount) -> some View {
-        HStack(spacing: Theme.Spacing.md) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(user.displayName)
-                    .font(AppFont.headline)
-                    .foregroundStyle(Theme.Palette.primaryText)
-                Text(user.email)
-                    .font(AppFont.subheadline)
-                    .foregroundStyle(Theme.Palette.mutedText)
-            }
-            Spacer(minLength: 0)
-            Button {
-                showSignOutConfirm = true
-            } label: {
-                Text("Sign Out")
-                    .font(AppFont.subheadlineMedium)
-                    .foregroundStyle(Theme.Palette.urgentRed)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(Theme.Spacing.lg)
-        .cardStyle(padding: 0)
     }
 
     private func emptyHint(_ text: String) -> some View {

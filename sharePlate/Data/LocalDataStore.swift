@@ -24,7 +24,7 @@ final class LocalDataStore: DataStore {
     /// reset resources here when the signature changes.
     /// Bump when import mapping logic changes so existing installs re-import
     /// even if the bundled database file has not changed.
-    private let resourceImportVersion = 3
+    private let resourceImportVersion = 5
     private let resourceImportVersionKey = "gcfdResourceImportVersion"
     private let seedSignatureKey = "gcfdDatasetSignature"
 
@@ -67,7 +67,8 @@ final class LocalDataStore: DataStore {
                         summary: location.summary,
                         type: location.type,
                         openingIntervals: location.intervals,
-                        serviceHours: location.serviceHours
+                        serviceHours: location.serviceHours,
+                        gcfdLocationID: location.locationID
                     )
                 )
             }
@@ -75,6 +76,7 @@ final class LocalDataStore: DataStore {
         try? context.save()
         UserDefaults.standard.set(currentSignature, forKey: seedSignatureKey)
         UserDefaults.standard.set(resourceImportVersion, forKey: resourceImportVersionKey)
+        reapplyPantryClaimsToResources()
     }
 
     func runMaintenance() {
@@ -232,6 +234,127 @@ final class LocalDataStore: DataStore {
         return (try? context.fetch(descriptor)) ?? []
     }
 
+    // MARK: - Pantry manager
+
+    func pantryClaims() -> [PantryClaim] {
+        (try? context.fetch(FetchDescriptor<PantryClaim>())) ?? []
+    }
+
+    /// The pantry this device's identity currently manages, if any.
+    func myPantryClaim() -> PantryClaim? {
+        guard let userID = session.currentUserID else { return nil }
+        return pantryClaims().first { $0.claimedByUserID.caseInsensitiveCompare(userID) == .orderedSame }
+    }
+
+    /// Pulls the latest pantry claims from Supabase and reapplies the
+    /// closed/managed overlay onto the local `FoodResource` cache.
+    func syncPantryClaims() async {
+        guard session.currentUserID != nil else { return }
+        guard let remote = try? await SupabasePantryClaimService.fetchAll() else { return }
+
+        let existingByID = Dictionary(uniqueKeysWithValues: pantryClaims().map { ($0.gcfdLocationID, $0) })
+        var seenIDs = Set<Int>()
+
+        for remoteClaim in remote {
+            seenIDs.insert(remoteClaim.gcfdLocationID)
+            if let local = existingByID[remoteClaim.gcfdLocationID] {
+                local.pantryName = remoteClaim.pantryName
+                local.claimedByUserID = remoteClaim.claimedBy.uuidString
+                local.isTemporarilyClosed = remoteClaim.isTemporarilyClosed
+                local.closedNote = remoteClaim.closedNote
+            } else {
+                context.insert(PantryClaim(
+                    gcfdLocationID: remoteClaim.gcfdLocationID,
+                    pantryName: remoteClaim.pantryName,
+                    claimedByUserID: remoteClaim.claimedBy.uuidString,
+                    claimedAt: remoteClaim.claimedAt,
+                    isTemporarilyClosed: remoteClaim.isTemporarilyClosed,
+                    closedNote: remoteClaim.closedNote
+                ))
+            }
+        }
+
+        for (id, claim) in existingByID where !seenIDs.contains(id) {
+            context.delete(claim)
+        }
+
+        try? context.save()
+        reapplyPantryClaimsToResources()
+    }
+
+    /// Re-derives each `FoodResource`'s claimed/closed overlay from the local
+    /// `PantryClaim` cache. Must run after every `seedIfNeeded()` import
+    /// (which wipes and reinserts resources) and after every claims sync.
+    func reapplyPantryClaimsToResources() {
+        let claimsByID = Dictionary(uniqueKeysWithValues: pantryClaims().map { ($0.gcfdLocationID, $0) })
+        for resource in resources() {
+            guard let locationID = resource.gcfdLocationID else { continue }
+            let claim = claimsByID[locationID]
+            resource.managedByUserID = claim?.claimedByUserID
+            resource.isTemporarilyClosed = claim?.isTemporarilyClosed ?? false
+            resource.pantryClosedNote = claim?.closedNote
+        }
+        try? context.save()
+    }
+
+    /// Claims an unclaimed pantry from the GCFD directory on behalf of this
+    /// device's identity. Fails if someone already claimed it first.
+    func claimPantry(_ resource: FoodResource) async throws {
+        guard let locationID = resource.gcfdLocationID else {
+            throw PantryClaimError.notClaimable
+        }
+        guard SupabaseManager.client.auth.currentSession != nil,
+              let userID = session.currentUserID, let claimedBy = UUID(uuidString: userID) else {
+            throw PostListingError.notSignedIn
+        }
+
+        let remote = try await SupabasePantryClaimService.claim(RemotePantryClaimInsert(
+            gcfdLocationID: locationID,
+            pantryName: resource.name,
+            claimedBy: claimedBy
+        ))
+
+        context.insert(PantryClaim(
+            gcfdLocationID: remote.gcfdLocationID,
+            pantryName: remote.pantryName,
+            claimedByUserID: remote.claimedBy.uuidString,
+            claimedAt: remote.claimedAt
+        ))
+        try? context.save()
+        reapplyPantryClaimsToResources()
+    }
+
+    /// Gives up management of a pantry — it returns to the unclaimed,
+    /// read-only directory entry.
+    func releasePantryClaim(_ claim: PantryClaim) async throws {
+        try await SupabasePantryClaimService.release(gcfdLocationID: claim.gcfdLocationID)
+        context.delete(claim)
+        try? context.save()
+        reapplyPantryClaimsToResources()
+    }
+
+    /// Toggles whether a claimed pantry shows as temporarily closed on the
+    /// map, with an optional note (e.g. "Out of food until Thursday").
+    func setPantryClosed(_ claim: PantryClaim, isClosed: Bool, note: String?) async throws {
+        let trimmedNote = note?.trimmingCharacters(in: .whitespacesAndNewlines)
+        try await SupabasePantryClaimService.updateStatus(
+            gcfdLocationID: claim.gcfdLocationID,
+            patch: RemotePantryClaimUpdate(
+                isTemporarilyClosed: isClosed,
+                closedNote: (trimmedNote?.isEmpty ?? true) ? nil : trimmedNote
+            )
+        )
+        claim.isTemporarilyClosed = isClosed
+        claim.closedNote = (trimmedNote?.isEmpty ?? true) ? nil : trimmedNote
+        try? context.save()
+        reapplyPantryClaimsToResources()
+    }
+
+    /// Active (unexpired, unpicked-up) surplus listings posted by a claimed pantry.
+    func pantryListings(for claim: PantryClaim) -> [FoodListing] {
+        listings().filter { $0.pantryGCFDLocationID == claim.gcfdLocationID && $0.effectiveStatus != .pickedUp }
+    }
+
     @discardableResult
     func createListing(
         category: FoodCategory,
@@ -247,7 +370,8 @@ final class LocalDataStore: DataStore {
         pickupDeadline: Date,
         pickupNotes: String?,
         pickupInstructions: ReservationCoordination,
-        dropOffRadiusMeters: Double? = nil
+        dropOffRadiusMeters: Double? = nil,
+        pantryGCFDLocationID: Int? = nil
     ) async throws -> FoodListing {
         let trimmedCustom = customTitle?.trimmingCharacters(in: .whitespaces)
         let title: String
@@ -299,7 +423,8 @@ final class LocalDataStore: DataStore {
             pickupNotes: pickupNotes,
             contactInstructions: instructionsPayload,
             status: ListingStatus.available.rawValue,
-            postedBy: postedBy
+            postedBy: postedBy,
+            pantryGCFDLocationID: pantryGCFDLocationID
         )
 
         let remote = try await SupabaseListingService.create(payload)
@@ -349,10 +474,12 @@ final class LocalDataStore: DataStore {
             dropOffRadiusMeters: dropOffRadiusMeters,
             packageCount: packageCount,
             maxPackagesPerBooking: cappedMax,
-            packagesRemaining: packageCount
+            packagesRemaining: packageCount,
+            pantryGCFDLocationID: pantryGCFDLocationID
         )
         context.insert(listing)
         try? context.save()
+        await NearbyAlertService.notifyListingPosted(listing)
         return listing
     }
 
@@ -647,7 +774,8 @@ final class LocalDataStore: DataStore {
             claimedByDeviceID: remote.claimedBy?.uuidString,
             reservedUntil: remote.reservedUntil,
             waitlistDeviceIDs: remote.waitlistUserIDs.map(\.uuidString),
-            dropOffRadiusMeters: ListingDetailsCodec.decode(remote.details).dropOffRadiusMeters
+            dropOffRadiusMeters: ListingDetailsCodec.decode(remote.details).dropOffRadiusMeters,
+            pantryGCFDLocationID: remote.pantryGCFDLocationID
         )
         listing.syncPackageFieldsFromDetails()
         context.insert(listing)

@@ -15,6 +15,10 @@ struct CreateListingView: View {
     @Environment(LocationManager.self) private var location
     @Environment(\.dismiss) private var dismiss
 
+    /// When set, this post is surplus food from a claimed pantry rather than
+    /// an individual donor — tags the listing and pre-fills its location.
+    var pantryResource: FoodResource? = nil
+
     @State private var category: FoodCategory?
     @State private var otherCategoryLabel = ""
     @State private var packageCount: Int = 2
@@ -55,6 +59,9 @@ struct CreateListingView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
+                    if let pantryResource {
+                        pantryBanner(pantryResource)
+                    }
                     photoStep
                     categoryStep
                     packageCountStep
@@ -106,6 +113,9 @@ struct CreateListingView: View {
                 maxPerBooking = min(maxPerBooking, max(1, count))
             }
             .task {
+                if let pantryResource, pickupAddress.isEmpty {
+                    pickupAddress = pantryResource.address
+                }
                 if handoffMode == .dropOff {
                     await refreshDropOffAreaLabel()
                 }
@@ -122,6 +132,20 @@ struct CreateListingView: View {
     }
 
     // MARK: - Steps
+
+    private func pantryBanner(_ resource: FoodResource) -> some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: "building.2.fill")
+                .foregroundStyle(Theme.Palette.primaryGreen)
+            Text("Posting surplus food as \(resource.name)")
+                .font(AppFont.subheadlineMedium)
+                .foregroundStyle(Theme.Palette.primaryText)
+        }
+        .padding(Theme.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.Palette.primaryGreen.opacity(0.1))
+        .boxBorder(Theme.Palette.primaryGreen.opacity(0.3))
+    }
 
     private var photoStep: some View {
         PhotosPicker(
@@ -318,6 +342,7 @@ struct CreateListingView: View {
                         .font(AppFont.subheadlineMedium)
                     TextField("e.g. text when you're 1 min away", text: $pickupNotes, axis: .vertical)
                         .font(AppFont.body)
+                        .foregroundStyle(Theme.Palette.primaryText)
                         .lineLimit(2...3)
                         .padding(12)
                         .background(Theme.Palette.cardBackground)
@@ -397,6 +422,7 @@ struct CreateListingView: View {
                         .font(AppFont.subheadlineMedium)
                     TextField("e.g. ring doorbell, blue cooler by gate", text: $pickupNotes, axis: .vertical)
                         .font(AppFont.body)
+                        .foregroundStyle(Theme.Palette.primaryText)
                         .lineLimit(2...3)
                         .padding(12)
                         .background(Theme.Palette.cardBackground)
@@ -530,7 +556,12 @@ struct CreateListingView: View {
         Task {
             do {
                 if handoffMode == .dropOff {
-                    let area = await areaFromCoordinate(fallback)
+                    let area: String
+                    if let pantryResource {
+                        area = pantryResource.name
+                    } else {
+                        area = await areaFromCoordinate(fallback)
+                    }
                     let instructions = ReservationCoordination.publishedAtPost(
                         meetupAddress: "Near \(area)",
                         handoffSpot: handoffSpot,
@@ -553,11 +584,12 @@ struct CreateListingView: View {
                         pickupDeadline: deadline,
                         pickupNotes: note.isEmpty ? nil : note,
                         pickupInstructions: instructions,
-                        dropOffRadiusMeters: dropOffRadius.meters
+                        dropOffRadiusMeters: dropOffRadius.meters,
+                        pantryGCFDLocationID: pantryResource?.gcfdLocationID
                     )
                 } else {
                     let address = pickupAddress.trimmingCharacters(in: .whitespaces)
-                    var resolved = fallback
+                    var resolved = pantryResource?.coordinate ?? fallback
                     if let request = MKGeocodingRequest(addressString: address),
                        let item = try? await request.mapItems.first {
                         resolved = item.location.coordinate
@@ -578,12 +610,13 @@ struct CreateListingView: View {
                         pickupType: handoffMode.pickupType,
                         photo: photoData,
                         pickupAddress: address,
-                        area: areaLabel(from: address),
+                        area: pantryResource?.name ?? areaLabel(from: address),
                         latitude: resolved.latitude,
                         longitude: resolved.longitude,
                         pickupDeadline: deadline,
                         pickupNotes: note.isEmpty ? nil : note,
-                        pickupInstructions: instructions
+                        pickupInstructions: instructions,
+                        pantryGCFDLocationID: pantryResource?.gcfdLocationID
                     )
                 }
                 isSaving = false

@@ -76,7 +76,7 @@ struct ListingsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .screenBackground()
-            .navigationTitle("Free Food")
+            .navigationTitle("Food")
             .navigationDestination(for: LocationDetail.self) { detail in
                 LocationDetailScreen(detail: detail)
             }

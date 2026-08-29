@@ -2,10 +2,11 @@
 //  SessionContext.swift
 //  sharePlate
 //
-//  Lightweight stand-in for a future authenticated user. For now it holds a
-//  stable per-device identifier so posting/claiming can be attributed locally.
-//  When a real "universal login" backend is added, this is where the signed-in
-//  user identity would live, leaving the views unchanged.
+//  Per-device identity. There's no login screen: `currentUserID` is populated
+//  by a silent anonymous Supabase auth session (see SupabaseAuthService) so
+//  Postgres RLS still has a stable auth.uid() to key off of, while `deviceID`
+//  is a local fallback. `displayName` is a name the user picks in Settings —
+//  it's not tied to any account, just a label attached to this device.
 //
 
 import Foundation
@@ -13,15 +14,22 @@ import SwiftUI
 
 @Observable
 final class SessionContext {
-    /// Stable per-device fallback identifier (used before sign-in / for anonymous data).
+    /// Stable per-device fallback identifier (used before the anonymous session is ready).
     let deviceID: String
 
-    /// Set by the auth service when a user signs in; cleared on sign out.
+    /// Populated by SupabaseAuthService once the silent anonymous session is established.
     var currentUserID: String?
 
-    /// The identity that posts/claims are attributed to. Prefers the signed-in
-    /// user, falling back to the device ID.
+    /// The identity that posts/claims are attributed to. Prefers the anonymous
+    /// auth user, falling back to the device ID.
     var identity: String { currentUserID ?? deviceID }
+
+    private let displayNameKey = "sharePlate.displayName"
+
+    /// Name the user set in Settings. Defaults to "Neighbor" until they change it.
+    var displayName: String {
+        didSet { UserDefaults.standard.set(displayName, forKey: displayNameKey) }
+    }
 
     init() {
         let key = "sharePlate.deviceID"
@@ -32,6 +40,7 @@ final class SessionContext {
             UserDefaults.standard.set(new, forKey: key)
             deviceID = new
         }
+        displayName = UserDefaults.standard.string(forKey: displayNameKey) ?? "Neighbor"
     }
 
     /// Case-insensitive match for Supabase user ids (UUID strings may differ in casing).

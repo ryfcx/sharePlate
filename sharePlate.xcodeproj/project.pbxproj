@@ -409,6 +409,7 @@
 				DEVELOPMENT_TEAM = 72A69CPAAB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "SharePlate can notify you when a pantry opens or new food is posted nearby, even when the app isn't open.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "SharePlate uses your location to show nearby food resources and listings and to measure distances.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -443,6 +444,7 @@
 				DEVELOPMENT_TEAM = 72A69CPAAB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "SharePlate can notify you when a pantry opens or new food is posted nearby, even when the app isn't open.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "SharePlate uses your location to show nearby food resources and listings and to measure distances.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

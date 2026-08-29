@@ -15,19 +15,19 @@ enum ResourceType: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .pantry: return "Food Pantry"
-        case .mealProgram: return "Meal Program"
-        case .communityFridge: return "Community Fridge"
-        case .mobileDistribution: return "Mobile Distribution"
+        case .pantry: return String(localized: "Food Pantry")
+        case .mealProgram: return String(localized: "Meal Program")
+        case .communityFridge: return String(localized: "Community Fridge")
+        case .mobileDistribution: return String(localized: "Mobile Distribution")
         }
     }
 
     var shortName: String {
         switch self {
-        case .pantry: return "Pantry"
-        case .mealProgram: return "Meal Program"
-        case .communityFridge: return "Fridge"
-        case .mobileDistribution: return "Mobile"
+        case .pantry: return String(localized: "Pantry")
+        case .mealProgram: return String(localized: "Meal Program")
+        case .communityFridge: return String(localized: "Fridge")
+        case .mobileDistribution: return String(localized: "Mobile")
         }
     }
 
@@ -88,11 +88,11 @@ enum ListingStatus: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .available: return "Available"
-        case .reserved: return "Reserved"
-        case .readyForPickup: return "Ready for Pickup"
-        case .pickedUp: return "Picked Up"
-        case .expired: return "Expired"
+        case .available: return String(localized: "Available")
+        case .reserved: return String(localized: "Reserved")
+        case .readyForPickup: return String(localized: "Ready for Pickup")
+        case .pickedUp: return String(localized: "Picked Up")
+        case .expired: return String(localized: "Expired")
         }
     }
 
@@ -120,13 +120,13 @@ enum FoodCategory: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .preparedMeals: return "Prepared Meals"
-        case .produce: return "Produce"
-        case .bakery: return "Bakery"
-        case .pantry: return "Pantry Items"
-        case .drinks: return "Drinks"
-        case .mixed: return "Mixed Food"
-        case .other: return "Other"
+        case .preparedMeals: return String(localized: "Prepared Meals")
+        case .produce: return String(localized: "Produce")
+        case .bakery: return String(localized: "Bakery")
+        case .pantry: return String(localized: "Pantry Items")
+        case .drinks: return String(localized: "Drinks")
+        case .mixed: return String(localized: "Mixed Food")
+        case .other: return String(localized: "Other")
         }
     }
 
@@ -152,17 +152,17 @@ enum QuantitySize: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .feeds1to2: return "Feeds 1–2"
-        case .feeds3to5: return "Feeds 3–5"
-        case .feeds10plus: return "Feeds 10+"
+        case .feeds1to2: return String(localized: "Feeds 1–2")
+        case .feeds3to5: return String(localized: "Feeds 3–5")
+        case .feeds10plus: return String(localized: "Feeds 10+")
         }
     }
 
     var shortName: String {
         switch self {
-        case .feeds1to2: return "Small"
-        case .feeds3to5: return "Medium"
-        case .feeds10plus: return "Large"
+        case .feeds1to2: return String(localized: "Small")
+        case .feeds3to5: return String(localized: "Medium")
+        case .feeds10plus: return String(localized: "Large")
         }
     }
 
@@ -180,7 +180,7 @@ enum QuantitySize: String, Codable, CaseIterable, Identifiable {
 
     var packagesLabel: String {
         let count = packageCount
-        return count == 1 ? "1 pack" : "\(count) packs"
+        return count == 1 ? String(localized: "1 pack") : String(localized: "\(count) packs")
     }
 
     /// Wireframe-style quantity, e.g. `2x`.
@@ -214,9 +214,9 @@ enum HandoffSpot: String, CaseIterable, Identifiable, Codable {
 
     var displayName: String {
         switch self {
-        case .curb: return "Curb"
-        case .home: return "Home"
-        case .outside: return "Outside"
+        case .curb: return String(localized: "Curb")
+        case .home: return String(localized: "Home")
+        case .outside: return String(localized: "Outside")
         }
     }
 
@@ -231,9 +231,9 @@ enum HandoffSpot: String, CaseIterable, Identifiable, Codable {
     func displayName(isDropOff: Bool) -> String {
         guard isDropOff else { return displayName }
         switch self {
-        case .curb: return "Curbside"
-        case .home: return "At their door"
-        case .outside: return "Meet outside"
+        case .curb: return String(localized: "Curbside")
+        case .home: return String(localized: "At their door")
+        case .outside: return String(localized: "Meet outside")
         }
     }
 }
@@ -248,10 +248,10 @@ enum ReservationTimeslot: String, CaseIterable, Identifiable, Codable {
 
     var displayName: String {
         switch self {
-        case .now: return "Now"
-        case .in15Minutes: return "In 15 min"
-        case .in30Minutes: return "In 30 min"
-        case .in1Hour: return "In 1 hour"
+        case .now: return String(localized: "Now")
+        case .in15Minutes: return String(localized: "In 15 min")
+        case .in30Minutes: return String(localized: "In 30 min")
+        case .in1Hour: return String(localized: "In 1 hour")
         }
     }
 
@@ -278,8 +278,8 @@ enum DonorHandoffMode: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .pickup: return "Pickup"
-        case .dropOff: return "Drop off"
+        case .pickup: return String(localized: "Pickup")
+        case .dropOff: return String(localized: "Drop off")
         }
     }
 
@@ -308,10 +308,10 @@ enum DropOffRadius: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .oneMile: return "1 mi"
-        case .threeMiles: return "3 mi"
-        case .fiveMiles: return "5 mi"
-        case .tenMiles: return "10 mi"
+        case .oneMile: return String(localized: "1 mi")
+        case .threeMiles: return String(localized: "3 mi")
+        case .fiveMiles: return String(localized: "5 mi")
+        case .tenMiles: return String(localized: "10 mi")
         }
     }
 
@@ -340,11 +340,11 @@ enum PickupType: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .porch: return "Porch pickup"
-        case .lobby: return "Lobby pickup"
-        case .meetOutside: return "Meet outside"
-        case .frontDesk: return "Front desk pickup"
-        case .communityFridge: return "Drop off"
+        case .porch: return String(localized: "Porch pickup")
+        case .lobby: return String(localized: "Lobby pickup")
+        case .meetOutside: return String(localized: "Meet outside")
+        case .frontDesk: return String(localized: "Front desk pickup")
+        case .communityFridge: return String(localized: "Drop off")
         }
     }
 
@@ -370,10 +370,10 @@ enum DeadlinePreset: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .thirtyMin: return "30 min"
-        case .oneHour: return "1 hour"
-        case .tonight: return "Tonight"
-        case .tomorrowMorning: return "Tomorrow AM"
+        case .thirtyMin: return String(localized: "30 min")
+        case .oneHour: return String(localized: "1 hour")
+        case .tonight: return String(localized: "Tonight")
+        case .tomorrowMorning: return String(localized: "Tomorrow AM")
         }
     }
 
@@ -403,10 +403,10 @@ enum ReportReason: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .spam: return "Spam"
-        case .fake: return "Fake Listing"
-        case .unsafeFood: return "Unsafe Food"
-        case .inappropriate: return "Inappropriate Content"
+        case .spam: return String(localized: "Spam")
+        case .fake: return String(localized: "Fake Listing")
+        case .unsafeFood: return String(localized: "Unsafe Food")
+        case .inappropriate: return String(localized: "Inappropriate Content")
         }
     }
 }

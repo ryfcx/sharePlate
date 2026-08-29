@@ -9,10 +9,15 @@
 
 import Foundation
 import SQLite3
+import UIKit
 
 enum GCFDDatabase {
     /// Parsed location ready to be turned into a `FoodResource`.
     struct Location {
+        /// GCFD's own stable id for this location — survives daily dataset
+        /// resyncs, so pantry claims can be keyed off it instead of a local
+        /// row identity that gets wiped and recreated every re-import.
+        let locationID: Int
         let name: String
         let address: String
         let latitude: Double
@@ -212,6 +217,7 @@ enum GCFDDatabase {
 
             locations.append(
                 Location(
+                    locationID: locationID,
                     name: name,
                     address: address,
                     latitude: latitude,
@@ -279,7 +285,7 @@ enum GCFDDatabase {
     }
 
     private static func summaryText(about: String, programs: String) -> String {
-        let trimmed = about.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = plainText(fromHTML: about)
         if !trimmed.isEmpty {
             return String(trimmed.prefix(240))
         }
@@ -287,6 +293,38 @@ enum GCFDDatabase {
             return programs
         }
         return "Food assistance location."
+    }
+
+    /// AccessFood sometimes returns `about_us` as an HTML fragment. Convert it
+    /// to readable text here as a safeguard for older or downloaded databases.
+    private static func plainText(fromHTML html: String) -> String {
+        let trimmed = html.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+
+        let decoded: String
+        if let data = trimmed.data(using: .utf8),
+           let attributed = try? NSAttributedString(
+               data: data,
+               options: [
+                   .documentType: NSAttributedString.DocumentType.html,
+                   .characterEncoding: String.Encoding.utf8.rawValue,
+               ],
+               documentAttributes: nil
+           ) {
+            decoded = attributed.string
+        } else {
+            decoded = trimmed.replacingOccurrences(
+                of: "<[^>]+>",
+                with: " ",
+                options: .regularExpression
+            )
+        }
+
+        return decoded
+            .components(separatedBy: .newlines)
+            .map { $0.split(whereSeparator: \.isWhitespace).joined(separator: " ") }
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
     }
 
     /// Parses minutes-since-midnight from an ISO timestamp like

@@ -41,15 +41,26 @@ enum PostListingError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notSignedIn:
-            return "Your sign-in session expired. Sign out and sign back in, then try again."
+            return "Couldn't verify your device identity. Check your connection and try again."
         case .missingUser:
-            return "Could not verify your account. Sign out and sign back in, then try again."
+            return "Couldn't verify your device identity. Check your connection and try again."
         case .missingPhoto:
             return "Add a photo of the food before posting."
         case .missingRemoteListing:
             return "This listing is not synced yet. Try again in a moment."
         case .missingPickupInstructions:
             return "Add how pickers should get the food before posting."
+        }
+    }
+}
+
+enum PantryClaimError: LocalizedError {
+    case notClaimable
+
+    var errorDescription: String? {
+        switch self {
+        case .notClaimable:
+            return "This location can't be claimed."
         }
     }
 }
@@ -101,8 +112,20 @@ protocol DataStore {
         pickupDeadline: Date,
         pickupNotes: String?,
         pickupInstructions: ReservationCoordination,
-        dropOffRadiusMeters: Double?
+        dropOffRadiusMeters: Double?,
+        pantryGCFDLocationID: Int?
     ) async throws -> FoodListing
+
+    // MARK: - Pantry manager
+
+    func pantryClaims() -> [PantryClaim]
+    func myPantryClaim() -> PantryClaim?
+    func syncPantryClaims() async
+    func reapplyPantryClaimsToResources()
+    func claimPantry(_ resource: FoodResource) async throws
+    func releasePantryClaim(_ claim: PantryClaim) async throws
+    func setPantryClosed(_ claim: PantryClaim, isClosed: Bool, note: String?) async throws
+    func pantryListings(for claim: PantryClaim) -> [FoodListing]
 
     func reserve(_ listing: FoodListing, packageCount: Int, dropOff: DropOffReservationDetails?) async throws
     func releaseReservation(_ listing: FoodListing) async throws

@@ -84,6 +84,7 @@ struct DropOffReserveSheet: View {
                         TextField("Street address, city", text: $address, axis: .vertical)
                             .lineLimit(2...4)
                             .font(AppFont.body)
+                            .foregroundStyle(Theme.Palette.primaryText)
                             .padding(Theme.Spacing.md)
                             .background(Theme.Palette.cardBackground)
                             .boxBorder()

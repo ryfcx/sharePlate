@@ -11,6 +11,7 @@ import SwiftData
 @main
 struct sharePlateApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @AppStorage(AppLanguage.storageKey) private var appLanguageRaw = AppLanguage.system.rawValue
 
     private let container: ModelContainer
     private let session: SessionContext
@@ -39,8 +40,13 @@ struct sharePlateApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        let language = AppLanguage(rawValue: appLanguageRaw) ?? .system
+        AppLanguage.apply(language)
+
+        return WindowGroup {
             AppRootView()
+                .id(appLanguageRaw)
+                .environment(\.locale, language.locale)
                 .environment(location)
                 .environment(session)
                 .environment(store)

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 // MARK: - Color from hex
 
@@ -25,12 +26,26 @@ extension Color {
 
 enum Theme {
     enum Palette {
+        private static func adaptive(light: UInt, dark: UInt) -> Color {
+            Color(
+                uiColor: UIColor { traits in
+                    let hex = traits.userInterfaceStyle == .dark ? dark : light
+                    return UIColor(
+                        red: CGFloat((hex >> 16) & 0xFF) / 255,
+                        green: CGFloat((hex >> 8) & 0xFF) / 255,
+                        blue: CGFloat(hex & 0xFF) / 255,
+                        alpha: 1
+                    )
+                }
+            )
+        }
+
         static let primaryGreen = Color(hex: 0x2E7D32)
         static let accentOrange = Color(hex: 0xF4A261)
-        static let backgroundCream = Color(hex: 0xF7F4EA)
-        static let cardBackground = Color(hex: 0xFFFFFF)
-        static let primaryText = Color(hex: 0x1F2937)
-        static let mutedText = Color(hex: 0x6B7280)
+        static let backgroundCream = adaptive(light: 0xF7F4EA, dark: 0x111712)
+        static let cardBackground = adaptive(light: 0xFFFFFF, dark: 0x1B231D)
+        static let primaryText = adaptive(light: 0x1F2937, dark: 0xF5F1E7)
+        static let mutedText = adaptive(light: 0x6B7280, dark: 0xAEB8AF)
 
         // Map pin / category colors
         static let pantryGreen = Color(hex: 0x2E7D32)
@@ -42,8 +57,8 @@ enum Theme {
         static let limitedYellow = Color(hex: 0xD98A0B)
 
         // Borders / fills
-        static let hairline = Color(hex: 0xCCCCCC)
-        static let softFill = Color(hex: 0xEFEBDD)
+        static let hairline = adaptive(light: 0xCCCCCC, dark: 0x445048)
+        static let softFill = adaptive(light: 0xEFEBDD, dark: 0x263029)
     }
 
     /// Subtle corners — flat layout, not fully square.

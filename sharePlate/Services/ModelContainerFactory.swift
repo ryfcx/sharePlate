@@ -14,7 +14,7 @@ enum ModelContainerFactory {
         FoodResource.self,
         FoodListing.self,
         ReportRecord.self,
-        UserAccount.self,
+        PantryClaim.self,
     ])
 
     static func make() throws -> ModelContainer {
