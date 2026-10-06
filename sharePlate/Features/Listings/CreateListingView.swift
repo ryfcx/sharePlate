@@ -27,8 +27,11 @@ struct CreateListingView: View {
     @State private var deadlinePreset: DeadlinePreset = .oneHour
     @State private var pickupNotes = ""
     @State private var pickupAddress = ""
+    @State private var pinnedPickupCoordinate: CLLocationCoordinate2D?
+    @State private var pinnedPickupAddress: String?
+    @State private var showPickupMapPicker = false
     @State private var dropOffRadius: DropOffRadius = .threeMiles
-    @State private var dropOffAreaLabel = "Near you"
+    @State private var dropOffAreaLabel = String(localized: "Near you")
     @State private var handoffSpot: HandoffSpot?
     @State private var readyBy: ReservationTimeslot = .in30Minutes
 
@@ -109,6 +112,12 @@ struct CreateListingView: View {
                     Task { await refreshDropOffAreaLabel() }
                 }
             }
+            .onChange(of: pickupAddress) { _, newAddress in
+                if let pinnedPickupAddress, newAddress != pinnedPickupAddress {
+                    pinnedPickupCoordinate = nil
+                    self.pinnedPickupAddress = nil
+                }
+            }
             .onChange(of: packageCount) { _, count in
                 maxPerBooking = min(maxPerBooking, max(1, count))
             }
@@ -127,6 +136,16 @@ struct CreateListingView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(errorMessage ?? "")
+            }
+            .sheet(isPresented: $showPickupMapPicker) {
+                MapLocationPicker(
+                    initialCoordinate: pinnedPickupCoordinate ?? pantryResource?.coordinate ?? location.mapCenter,
+                    selectedCoordinate: pinnedPickupCoordinate
+                ) { coordinate, address in
+                    pinnedPickupCoordinate = coordinate
+                    pinnedPickupAddress = address
+                    pickupAddress = address
+                }
             }
         }
     }
@@ -370,6 +389,16 @@ struct CreateListingView: View {
                         .font(AppFont.subheadlineMedium)
                         .foregroundStyle(Theme.Palette.primaryGreen)
                 }
+                .buttonStyle(.plain)
+
+                Button {
+                    showPickupMapPicker = true
+                } label: {
+                    Label("Drop a pin on the map", systemImage: "mappin.and.ellipse")
+                        .font(AppFont.subheadlineMedium)
+                        .foregroundStyle(Theme.Palette.primaryGreen)
+                }
+                .buttonStyle(.plain)
 
                 Text("The exact address stays private until someone reserves.")
                     .font(AppFont.caption)
@@ -448,7 +477,7 @@ struct CreateListingView: View {
 
     // MARK: - Building blocks
 
-    private func stepContainer<Content: View>(number: Int, title: String, @ViewBuilder content: () -> Content) -> some View {
+    private func stepContainer<Content: View>(number: Int, title: LocalizedStringKey, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             HStack(spacing: Theme.Spacing.sm) {
                 Text("\(number)")
@@ -494,7 +523,7 @@ struct CreateListingView: View {
     }
 
     /// Downscale large photos so they store efficiently in SwiftData.
-    private static func downscaledPhotoData(_ data: Data) -> Data {
+    nonisolated private static func downscaledPhotoData(_ data: Data) -> Data {
         guard let image = UIImage(data: data) else { return data }
         let maxDimension: CGFloat = 1200
         let size = image.size
@@ -514,9 +543,16 @@ struct CreateListingView: View {
         let coordinate = location.mapCenter
         Task {
             let loc = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-            guard let request = MKReverseGeocodingRequest(location: loc),
-                  let item = try? await request.mapItems.first,
-                  let fullAddress = item.address?.fullAddress else { return }
+            let fullAddress: String
+            if let request = MKReverseGeocodingRequest(location: loc),
+               let item = try? await request.mapItems.first,
+               let resolvedAddress = item.address?.fullAddress {
+                fullAddress = resolvedAddress
+            } else {
+                fullAddress = String(format: "%.5f, %.5f", coordinate.latitude, coordinate.longitude)
+            }
+            pinnedPickupCoordinate = coordinate
+            pinnedPickupAddress = fullAddress
             pickupAddress = fullAddress
         }
     }
@@ -528,7 +564,7 @@ struct CreateListingView: View {
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
         if parts.count >= 2 { return parts[parts.count - 2] }
-        return parts.first ?? "Nearby"
+        return parts.first ?? String(localized: "Nearby")
     }
 
     private func areaFromCoordinate(_ coordinate: CLLocationCoordinate2D) async -> String {
@@ -536,7 +572,7 @@ struct CreateListingView: View {
         guard let request = MKReverseGeocodingRequest(location: loc),
               let item = try? await request.mapItems.first,
               let fullAddress = item.address?.fullAddress else {
-            return "Near you"
+            return String(localized: "Near you")
         }
         return areaLabel(from: fullAddress)
     }
@@ -563,7 +599,7 @@ struct CreateListingView: View {
                         area = await areaFromCoordinate(fallback)
                     }
                     let instructions = ReservationCoordination.publishedAtPost(
-                        meetupAddress: "Near \(area)",
+                        meetupAddress: String(localized: "Near \(area)"),
                         handoffSpot: handoffSpot,
                         readyBy: readyBy,
                         providerNote: note,
@@ -577,7 +613,7 @@ struct CreateListingView: View {
                         maxPackagesPerBooking: maxPerBooking,
                         pickupType: handoffMode.pickupType,
                         photo: photoData,
-                        pickupAddress: "Within \(dropOffRadius.displayName)",
+                        pickupAddress: String(localized: "Within \(dropOffRadius.displayName)"),
                         area: area,
                         latitude: fallback.latitude,
                         longitude: fallback.longitude,
@@ -590,7 +626,9 @@ struct CreateListingView: View {
                 } else {
                     let address = pickupAddress.trimmingCharacters(in: .whitespaces)
                     var resolved = pantryResource?.coordinate ?? fallback
-                    if let request = MKGeocodingRequest(addressString: address),
+                    if let pinnedPickupCoordinate, pinnedPickupAddress == pickupAddress {
+                        resolved = pinnedPickupCoordinate
+                    } else if let request = MKGeocodingRequest(addressString: address),
                        let item = try? await request.mapItems.first {
                         resolved = item.location.coordinate
                     }

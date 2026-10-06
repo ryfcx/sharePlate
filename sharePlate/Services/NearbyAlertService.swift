@@ -56,8 +56,8 @@ enum NearbyAlertService {
         for (resource, _) in nearby {
             guard let interval = primaryWeeklyOpening(for: resource) else { continue }
             let content = UNMutableNotificationContent()
-            content.title = "Opening nearby"
-            content.body = "\(resource.name) opens at \(timeString(fromMinutes: interval.startMinutes))"
+            content.title = String(localized: "Opening nearby")
+            content.body = String(localized: "\(resource.name) opens at \(timeString(fromMinutes: interval.startMinutes))")
             content.sound = .default
             content.userInfo = ["type": "pantry_open"]
 
@@ -94,9 +94,8 @@ enum NearbyAlertService {
     // MARK: - New nearby listings
 
     /// Checks listings created since the last check for ones nearby and not
-    /// posted by this device, firing an immediate local notification for
-    /// each. Call whenever the local listing catalog changes (Realtime
-    /// insert/update or a periodic sync) while the app is running.
+    /// posted by this device, firing an immediate system notification for each.
+    /// Call whenever the local listing catalog changes while the app is running.
     static func checkForNewNearbyListings(
         _ listings: [FoodListing],
         near coordinate: CLLocationCoordinate2D,
@@ -117,8 +116,10 @@ enum NearbyAlertService {
             guard distance <= nearRadiusMeters else { continue }
 
             let content = UNMutableNotificationContent()
-            content.title = listing.isPantryListing ? "New pantry food nearby" : "New food posted nearby"
-            content.body = "\(listing.title) · \(listing.areaLabel)"
+            content.title = listing.isPantryListing
+                ? String(localized: "New pantry food nearby")
+                : String(localized: "New food posted nearby")
+            content.body = String(localized: "\(listing.title) · \(listing.areaLabel)")
             content.sound = .default
             content.userInfo = ["type": "new_listing", "listing_id": remoteID]
 
@@ -143,13 +144,42 @@ enum NearbyAlertService {
         guard await hasNotificationPermission(center) else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "Listing posted"
-        content.body = "\(listing.title) is live — Listing \(listing.listingNumber)"
+        content.title = String(localized: "Listing posted")
+        content.body = String(localized: "\(listing.title) is live — Listing \(listing.listingNumber)")
         content.sound = .default
         content.userInfo = ["type": "listing_posted", "listing_id": listing.remoteID ?? ""]
 
         let request = UNNotificationRequest(
             identifier: "listing-posted-\(listing.remoteID ?? UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+        try? await center.add(request)
+    }
+
+    // MARK: - Provider reservation alert
+
+    /// Fires on the provider's device when Realtime reports that one of their
+    /// listings has been reserved. Like new-nearby-listing alerts, this works
+    /// while the app is running or briefly alive in the background.
+    static func notifyListingReserved(_ listing: FoodListing) async {
+        guard let remoteID = listing.remoteID else { return }
+        let center = UNUserNotificationCenter.current()
+        guard await hasNotificationPermission(center) else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "Food reserved")
+        content.body = String(localized: "\(listing.packagesLabel) reserved from \(listing.title) · Booking \(listing.bookingCode)")
+        content.sound = .default
+        content.userInfo = [
+            "type": "listing_reserved",
+            "listing_id": remoteID,
+            "listing_title": listing.title,
+        ]
+
+        let reservationID = listing.claimedByDeviceID ?? UUID().uuidString
+        let request = UNNotificationRequest(
+            identifier: "listing-reserved-\(remoteID)-\(reservationID)",
             content: content,
             trigger: nil
         )

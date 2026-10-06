@@ -54,9 +54,6 @@ struct RootTabView: View {
             AppTabBar(selection: $selectedTab)
         }
         .background(Theme.Palette.backgroundCream)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            noticeBanner
-        }
         .onChange(of: selectedTab) { _, tab in
             withoutAnimation { loadedTabs.insert(tab) }
         }
@@ -66,7 +63,7 @@ struct RootTabView: View {
             await store.syncListings(force: true)
             await store.syncPantryClaims()
             HandoffLiveUpdatesService.shared.start(store: store, session: session)
-            ListingCatalogSyncService.shared.start(store: store)
+            ListingCatalogSyncService.shared.start(store: store, session: session, location: location)
             await PushNotificationService.shared.requestAuthorizationAndRegister()
             await PushNotificationService.shared.uploadTokenIfNeeded()
             location.bootstrapIfNeeded()
@@ -107,47 +104,6 @@ struct RootTabView: View {
             loadedTabs.insert(.activity)
             if selectedTab != .map {
                 selectedTab = .activity
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var noticeBanner: some View {
-        if let current = notice.current {
-            HStack(spacing: Theme.Spacing.md) {
-                Image(systemName: current.event.symbol)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.white)
-                Text(current.event.message)
-                    .font(AppFont.subheadlineMedium)
-                    .foregroundStyle(.white)
-                    .lineLimit(2)
-                Spacer(minLength: 0)
-                Button {
-                    notice.dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.9))
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, Theme.Spacing.lg)
-            .padding(.vertical, Theme.Spacing.md)
-            .background(Theme.Palette.primaryGreen)
-            .boxBorder(Theme.Palette.primaryGreen.opacity(0.5))
-            .contentShape(Rectangle())
-            .onTapGesture {
-                if let remoteID = current.event.listingRemoteID {
-                    notice.openHandoff(listingRemoteID: remoteID)
-                    loadedTabs.insert(.map)
-                    loadedTabs.insert(.activity)
-                    if selectedTab != .map {
-                        selectedTab = .activity
-                    }
-                } else {
-                    notice.dismiss()
-                }
             }
         }
     }

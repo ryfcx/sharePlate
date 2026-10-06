@@ -37,15 +37,9 @@ struct ResourceRow: View {
                         Text(distanceText).foregroundStyle(Theme.Palette.mutedText)
                     }
                     let status = resource.openStatus()
-                    if status == .open || status == .closingSoon {
-                        metaDot
-                        Text(status == .closingSoon ? "Closing soon" : "Open")
-                            .foregroundStyle(status.pinColor)
-                    } else if resource.isOpenNow == false {
-                        metaDot
-                        Text("Closed")
-                            .foregroundStyle(Theme.Palette.urgentRed)
-                    }
+                    metaDot
+                    Text(status.legendLabel)
+                        .foregroundStyle(status.pinColor)
                 }
                 .font(AppFont.caption)
             }

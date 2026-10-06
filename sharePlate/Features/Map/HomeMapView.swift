@@ -26,13 +26,12 @@ struct HomeMapView: View {
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
     @State private var searchDebounceTask: Task<Void, Never>?
-    @State private var selectedFilters: Set<MapFilterOption> = []
+    @State private var selectedFilters: Set<MapFilterOption> = Set(MapFilterOption.allCases)
     @State private var timeWindow: MapTimeWindow = .near
     @State private var showOpenOnly = true
     @State private var showAllLocations = false
-    @State private var showAllLocationsWarning = false
     @State private var showCreate = false
-    @State private var nearbyExpanded = true
+    @State private var nearbyExpanded = false
     @State private var navigationPath = NavigationPath()
     @State private var notice = LocalNotice.shared
 
@@ -113,14 +112,6 @@ struct HomeMapView: View {
             }
             .sheet(isPresented: $showCreate) {
                 CreateListingView()
-            }
-            .alert("Warning", isPresented: $showAllLocationsWarning) {
-                Button("Cancel", role: .cancel) { }
-                Button("Show all anyway", role: .destructive) {
-                    showAllLocations = true
-                }
-            } message: {
-                Text("Shows every location in the database. Open-now filtering is turned off. Map may feel slower.")
             }
             .onAppear {
                 debouncedSearchText = searchText
@@ -218,7 +209,7 @@ struct HomeMapView: View {
         var filteredR = nearbyResources
         if refreshResources {
             filteredR = resources.filter { resource in
-                if !selectedFilters.isEmpty && !resource.matches(selectedFilters) { return false }
+                if selectedFilters.isEmpty || !resource.matches(selectedFilters) { return false }
                 if !MapBrowseLogic.resourceMatches(resource, window: timeWindow) { return false }
                 if openOnly {
                     let status = resourceOpenStatus(resource)
@@ -238,7 +229,8 @@ struct HomeMapView: View {
         if refreshListings {
             filteredL = listings.filter { listing in
                 guard MapBrowseLogic.listingMatchesWindow(listing, window: timeWindow) else { return false }
-                if !selectedFilters.isEmpty && !listing.matches(selectedFilters) { return false }
+                if openOnly, listing.isPermanent, permanentStoreStatus(listing) == .closed { return false }
+                if selectedFilters.isEmpty || !listing.matches(selectedFilters) { return false }
                 if !query.isEmpty {
                     return listing.title.lowercased().contains(query)
                         || listing.category.displayName.lowercased().contains(query)
@@ -248,6 +240,14 @@ struct HomeMapView: View {
             }
         } else if !showListings {
             filteredL = []
+        }
+
+        let permanentStoreIDs = Set(filteredL.filter(\.isPermanent).compactMap(\.pantryGCFDLocationID))
+        if !permanentStoreIDs.isEmpty {
+            filteredR.removeAll { resource in
+                guard let id = resource.gcfdLocationID else { return false }
+                return permanentStoreIDs.contains(id)
+            }
         }
 
         let scopedR = applyNearRadius ? filteredR.filter { isNear($0.coordinate) } : filteredR
@@ -296,6 +296,7 @@ struct HomeMapView: View {
                     .font(AppFont.title2)
                     .foregroundStyle(Theme.Palette.primaryText)
                 Spacer(minLength: 0)
+                SharePlateLogoView()
             }
 
             SearchBox(text: $searchText, prompt: searchPrompt)
@@ -317,11 +318,7 @@ struct HomeMapView: View {
                     }
                 }
                 FilterChip(title: "All locations", systemImage: "globe", isSelected: showAllLocations) {
-                    if showAllLocations {
-                        withoutAnimation { showAllLocations = false }
-                    } else {
-                        showAllLocationsWarning = true
-                    }
+                    withoutAnimation { showAllLocations.toggle() }
                 }
             }
         }
@@ -333,9 +330,9 @@ struct HomeMapView: View {
 
     private var searchPrompt: String {
         switch timeWindow {
-        case .near: return "Search nearby"
-        case .today: return "Search available today"
-        case .tomorrow: return "Search for tomorrow"
+        case .near: return String(localized: "Search nearby")
+        case .today: return String(localized: "Search available today")
+        case .tomorrow: return String(localized: "Search for tomorrow")
         }
     }
 
@@ -343,6 +340,14 @@ struct HomeMapView: View {
         MapLegendView()
             .padding(.leading, Theme.Spacing.lg)
             .padding(.bottom, nearbyExpanded ? 388 : collapsedBarHeight + Theme.Spacing.sm)
+    }
+
+    private func permanentStoreStatus(_ listing: FoodListing) -> MapPlaceOpenStatus {
+        guard let id = listing.pantryGCFDLocationID,
+              let resource = resources.first(where: { $0.gcfdLocationID == id }) else {
+            return listing.mapOpenStatus
+        }
+        return resourceOpenStatus(resource)
     }
 
     private func resourceOpenStatus(_ resource: FoodResource) -> MapPlaceOpenStatus {
@@ -376,13 +381,20 @@ struct HomeMapView: View {
 
             ForEach(mapListings) { listing in
                 Annotation(
-                    listing.isPantryListing ? listing.areaLabel : "Near \(listing.areaLabel)",
-                    coordinate: listing.publicCoordinate
+                    listing.isPermanent
+                        ? listing.title
+                        : (listing.isPantryListing
+                            ? listing.areaLabel
+                            : String(localized: "Near \(listing.areaLabel)")),
+                    coordinate: (listing.isPermanent || listing.isStandingLocation) ? listing.coordinate : listing.publicCoordinate
                 ) {
                     Button {
                         openDetail(.listing(listing.persistentModelID))
                     } label: {
-                        MapPin(symbol: listing.category.symbol, status: listing.mapOpenStatus)
+                        MapPin(
+                            symbol: listing.isPermanent ? "cart.fill" : listing.category.symbol,
+                            status: listing.isPermanent ? permanentStoreStatus(listing) : listing.mapOpenStatus
+                        )
                     }
                     .buttonStyle(.plain)
                 }
@@ -507,8 +519,8 @@ struct HomeMapView: View {
         .scrollDismissesKeyboard(.interactively)
     }
 
-    private func sectionTitle(_ text: String) -> some View {
-        Text(text)
+    private func sectionTitle(_ key: LocalizedStringKey) -> some View {
+        Text(key)
             .font(AppFont.captionBold)
             .textCase(.uppercase)
             .foregroundStyle(Theme.Palette.mutedText)
@@ -531,35 +543,37 @@ struct HomeMapView: View {
 
     private var nearbyPanelTitle: String {
         switch timeWindow {
-        case .near: return "Nearby"
-        case .today: return "Today"
-        case .tomorrow: return "Tomorrow"
+        case .near: return String(localized: "Nearby")
+        case .today: return String(localized: "Today")
+        case .tomorrow: return String(localized: "Tomorrow")
         }
     }
 
     private var nearbyCountText: String {
-        nearbyPlaceCount == 1 ? "1 place" : "\(nearbyPlaceCount) places"
+        nearbyPlaceCount == 1
+            ? String(localized: "1 place")
+            : String(localized: "\(nearbyPlaceCount) places")
     }
 
     private var emptyResultsMessage: String {
         if timeWindow == .tomorrow {
-            return "Nothing matches for tomorrow nearby. Try Today or Near."
+            return String(localized: "Nothing matches for tomorrow nearby. Try Today or Near.")
         }
         if timeWindow == .today {
-            return "Nothing available today matches your filters. Try Near or turn off Open now."
+            return String(localized: "Nothing available today matches your filters. Try Near or turn off Open now.")
         }
         if !MapFilterLogic.includesResources(selected: selectedFilters)
             && MapFilterLogic.includesListings(selected: selectedFilters) {
-            return "No free food listings match these filters nearby."
+            return String(localized: "No free food listings match these filters nearby.")
         }
         if MapFilterLogic.includesResources(selected: selectedFilters)
             && !MapFilterLogic.includesListings(selected: selectedFilters) {
-            return "No pantry resources match these filters nearby."
+            return String(localized: "No pantry resources match these filters nearby.")
         }
         if showOpenOnly && !showAllLocations {
-            return "No open places match your search nearby. Try turning off Open now."
+            return String(localized: "No open places match your search nearby. Try turning off Open now.")
         }
-        return "No places match your search."
+        return String(localized: "No places match your search.")
     }
 
     private func centerIfNeeded() {

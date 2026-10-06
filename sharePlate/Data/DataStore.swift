@@ -18,15 +18,15 @@ enum ReserveError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notAvailable:
-            return "This listing is no longer available."
+            return String(localized: "This listing is no longer available.")
         case .expired:
-            return "This listing has expired."
+            return String(localized: "This listing has expired.")
         case .outsideDropOffRadius:
-            return "Your location and drop-off address must be within the donor's travel radius."
+            return String(localized: "Your location and drop-off address must be within the donor's travel radius.")
         case .missingDropOffAddress:
-            return "Enter the address where you want the food dropped off."
+            return String(localized: "Enter the address where you want the food dropped off.")
         case .invalidPackageCount:
-            return "Choose a valid number of packages for this booking."
+            return String(localized: "Choose a valid number of packages for this booking.")
         }
     }
 }
@@ -41,15 +41,15 @@ enum PostListingError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notSignedIn:
-            return "Couldn't verify your device identity. Check your connection and try again."
+            return String(localized: "Couldn't verify your device identity. Check your connection and try again.")
         case .missingUser:
-            return "Couldn't verify your device identity. Check your connection and try again."
+            return String(localized: "Couldn't verify your device identity. Check your connection and try again.")
         case .missingPhoto:
-            return "Add a photo of the food before posting."
+            return String(localized: "Add a photo of the food before posting.")
         case .missingRemoteListing:
-            return "This listing is not synced yet. Try again in a moment."
+            return String(localized: "This listing is not synced yet. Try again in a moment.")
         case .missingPickupInstructions:
-            return "Add how pickers should get the food before posting."
+            return String(localized: "Add how pickers should get the food before posting.")
         }
     }
 }
@@ -60,7 +60,7 @@ enum PantryClaimError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notClaimable:
-            return "This location can't be claimed."
+            return String(localized: "This location can't be claimed.")
         }
     }
 }
@@ -71,7 +71,7 @@ enum SyncError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .remoteUpdateFailed(let detail):
-            return "Couldn't sync with the server. Check your connection and try again. (\(detail))"
+            return String(localized: "Couldn't sync with the server. Check your connection and try again. (\(detail))")
         }
     }
 }

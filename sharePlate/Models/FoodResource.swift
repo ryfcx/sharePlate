@@ -25,6 +25,14 @@ final class FoodResource {
     /// which can't be claimed). Matches `PantryClaim.gcfdLocationID`.
     var gcfdLocationID: Int?
 
+    /// Imported with "Open 24 Hours" so their pantry dots stay green.
+    /// All three are in Lincoln Park.
+    static let alwaysOpenLocationIDs: Set<Int> = [
+        823,    // Harvest Hub Lincoln Park — 2145 N Halsted St
+        20947,  // Care For Friends — 530 W Fullerton Pkwy
+        820     // St. Teresa of Avila Parish — 1950 N Kenmore Ave
+    ]
+
     // MARK: - Pantry-manager overlay
     // Denormalized from `PantryClaim` and reapplied after every dataset
     // resync (which wipes and reinserts this table) — see
@@ -91,4 +99,18 @@ final class FoodResource {
     }
 
     var isOpenNow: Bool? { isOpen() }
+
+    /// Schedule written on every import, including a later dataset refresh.
+    /// Listed pantries always come back as Open 24 Hours so their status stays green.
+    static func importedSchedule(
+        locationID: Int,
+        hours: String,
+        intervals: [OpeningInterval],
+        serviceHours: [ServiceHours]
+    ) -> (hours: String, intervals: [OpeningInterval], serviceHours: [ServiceHours]) {
+        guard alwaysOpenLocationIDs.contains(locationID) else {
+            return (hours, intervals, serviceHours)
+        }
+        return ("Open 24 Hours", [], [])
+    }
 }

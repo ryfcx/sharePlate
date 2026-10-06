@@ -18,6 +18,8 @@ struct DropOffReserveSheet: View {
 
     @State private var address = ""
     @State private var resolvedCoordinate: CLLocationCoordinate2D?
+    @State private var resolvedAddress: String?
+    @State private var showMapPicker = false
     @State private var selectedPackages: Int
     @State private var isWorking = false
     @State private var errorMessage: String?
@@ -29,7 +31,7 @@ struct DropOffReserveSheet: View {
         self.listing = listing
         self.onReserve = onReserve
         let maxAllowed = min(listing.effectiveMaxPerBooking, listing.effectivePackagesRemaining)
-        _selectedPackages = State(initialValue: max(1, maxAllowed))
+        _selectedPackages = State(initialValue: maxAllowed > 8 ? 1 : max(1, maxAllowed))
     }
 
     private var maxAllowed: Int {
@@ -37,7 +39,7 @@ struct DropOffReserveSheet: View {
     }
 
     private var radiusLabel: String {
-        listing.dropOffRadiusLabel ?? "the listed radius"
+        listing.dropOffRadiusLabel ?? String(localized: "the listed radius")
     }
 
     var body: some View {
@@ -98,6 +100,15 @@ struct DropOffReserveSheet: View {
                         }
                         .buttonStyle(.plain)
                         .foregroundStyle(Theme.Palette.primaryGreen)
+
+                        Button {
+                            showMapPicker = true
+                        } label: {
+                            Label("Drop a pin on the map", systemImage: "mappin.and.ellipse")
+                                .font(AppFont.subheadlineMedium)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Theme.Palette.primaryGreen)
                     }
                     .cardStyle(padding: 0)
                 }
@@ -138,12 +149,28 @@ struct DropOffReserveSheet: View {
             } message: {
                 Text(errorMessage ?? "")
             }
+            .onChange(of: address) { _, newAddress in
+                if let resolvedAddress, newAddress != resolvedAddress {
+                    resolvedCoordinate = nil
+                    self.resolvedAddress = nil
+                }
+            }
+            .sheet(isPresented: $showMapPicker) {
+                MapLocationPicker(
+                    initialCoordinate: resolvedCoordinate ?? location.userLocation ?? listing.coordinate,
+                    selectedCoordinate: resolvedCoordinate
+                ) { coordinate, selectedAddress in
+                    resolvedCoordinate = coordinate
+                    resolvedAddress = selectedAddress
+                    address = selectedAddress
+                }
+            }
         }
     }
 
     private func useCurrentLocation() async {
         guard let userLocation = location.userLocation else {
-            errorMessage = "Location unavailable. Enter your address manually."
+            errorMessage = String(localized: "Location unavailable. Enter your address manually.")
             return
         }
         let loc = CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude)
@@ -155,6 +182,7 @@ struct DropOffReserveSheet: View {
             address = String(format: "%.4f, %.4f", userLocation.latitude, userLocation.longitude)
         }
         resolvedCoordinate = userLocation
+        resolvedAddress = address
     }
 
     private func submit() async {
@@ -171,15 +199,6 @@ struct DropOffReserveSheet: View {
         guard let radiusMeters = listing.dropOffRadiusMeters else {
             errorMessage = ReserveError.outsideDropOffRadius.errorDescription
             return
-        }
-
-        if let userLocation = location.userLocation {
-            let provider = CLLocation(latitude: listing.latitude, longitude: listing.longitude)
-            let here = CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude)
-            guard provider.distance(from: here) <= radiusMeters else {
-                errorMessage = ReserveError.outsideDropOffRadius.errorDescription
-                return
-            }
         }
 
         do {
@@ -204,10 +223,14 @@ struct DropOffReserveSheet: View {
     }
 
     private func resolveCoordinate(for address: String) async throws -> CLLocationCoordinate2D {
+        if let resolvedCoordinate, resolvedAddress == address {
+            return resolvedCoordinate
+        }
         if let request = MKGeocodingRequest(addressString: address),
            let item = try? await request.mapItems.first {
             let coord = item.location.coordinate
             resolvedCoordinate = coord
+            resolvedAddress = address
             return coord
         }
         if let resolvedCoordinate {

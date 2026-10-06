@@ -58,6 +58,7 @@ enum MapBrowseLogic {
 
     static func listingMatchesWindow(_ listing: FoodListing, window: MapTimeWindow, now: Date = Date()) -> Bool {
         guard listing.effectiveStatus == .available, !listing.isExpired else { return false }
+        if listing.isPermanent || listing.isStandingLocation { return true }
         let calendar = Calendar.current
         switch window {
         case .near:
@@ -144,6 +145,7 @@ extension FoodListing {
     }
 
     var mapOpenStatus: MapPlaceOpenStatus {
+        if isPermanent { return .open }
         if isExpired || pickupDeadline <= Date() { return .closed }
         if isClosingSoon { return .closingSoon }
         return .open

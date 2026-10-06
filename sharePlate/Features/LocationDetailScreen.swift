@@ -31,9 +31,8 @@ struct LocationDetailScreen: View {
     @ViewBuilder
     private func listingContent(for id: PersistentIdentifier) -> some View {
         if let listing = listings.first(where: { $0.persistentModelID == id }) {
-            if listing.effectiveStatus == .pickedUp || listing.effectiveStatus == .expired {
-                unavailable("This listing is no longer available.")
-                    .onAppear { dismissSoon() }
+            if listing.isPermanent, let store = storeResource(for: listing) {
+                ResourceDetailView(resource: store)
             } else {
                 ListingHandoffGate(listing: listing)
             }
@@ -43,6 +42,11 @@ struct LocationDetailScreen: View {
         }
     }
 
+    private func storeResource(for listing: FoodListing) -> FoodResource? {
+        guard let locationID = listing.pantryGCFDLocationID else { return nil }
+        return resources.first { $0.gcfdLocationID == locationID }
+    }
+
     private func dismissSoon() {
         Task {
             try? await Task.sleep(for: .milliseconds(350))
@@ -50,7 +54,7 @@ struct LocationDetailScreen: View {
         }
     }
 
-    private func unavailable(_ message: String) -> some View {
+    private func unavailable(_ message: LocalizedStringKey) -> some View {
         VStack(spacing: Theme.Spacing.md) {
             Image(systemName: "takeoutbag.and.cup.and.straw")
                 .font(.system(size: 28))

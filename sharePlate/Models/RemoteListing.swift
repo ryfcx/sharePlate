@@ -47,6 +47,72 @@ struct RemoteListing: Codable, Identifiable {
         case waitlistUserIDs = "waitlist_user_ids"
         case pantryGCFDLocationID = "pantry_gcfd_location_id"
     }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        details = try container.decodeIfPresent(String.self, forKey: .details) ?? ""
+        quantity = try container.decode(String.self, forKey: .quantity)
+        category = try container.decode(String.self, forKey: .category)
+        quantitySize = try container.decode(String.self, forKey: .quantitySize)
+        pickupType = try container.decode(String.self, forKey: .pickupType)
+        area = try container.decodeIfPresent(String.self, forKey: .area) ?? ""
+        photoURL = try container.decodeIfPresent(String.self, forKey: .photoURL)
+        pickupAddress = try container.decode(String.self, forKey: .pickupAddress)
+        latitude = try Self.decodeDouble(from: container, forKey: .latitude)
+        longitude = try Self.decodeDouble(from: container, forKey: .longitude)
+        pickupDeadline = try container.decode(Date.self, forKey: .pickupDeadline)
+        pickupNotes = try container.decodeIfPresent(String.self, forKey: .pickupNotes)
+        contactInstructions = try container.decodeIfPresent(String.self, forKey: .contactInstructions)
+        status = try container.decode(String.self, forKey: .status)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        postedBy = try container.decode(UUID.self, forKey: .postedBy)
+        claimedBy = try container.decodeIfPresent(UUID.self, forKey: .claimedBy)
+        reservedUntil = try container.decodeIfPresent(Date.self, forKey: .reservedUntil)
+        waitlistUserIDs = Self.decodeUUIDArray(from: container, forKey: .waitlistUserIDs)
+        pantryGCFDLocationID = try container.decodeIfPresent(Int.self, forKey: .pantryGCFDLocationID)
+    }
+
+    private static func decodeDouble(
+        from container: KeyedDecodingContainer<CodingKeys>,
+        forKey key: CodingKeys
+    ) throws -> Double {
+        if let value = try? container.decode(Double.self, forKey: key) {
+            return value
+        }
+        if let value = try? container.decode(Int.self, forKey: key) {
+            return Double(value)
+        }
+        if let value = try? container.decode(String.self, forKey: key), let parsed = Double(value) {
+            return parsed
+        }
+        throw DecodingError.dataCorruptedError(
+            forKey: key,
+            in: container,
+            debugDescription: "Expected a number for \(key.rawValue)"
+        )
+    }
+
+    private static func decodeUUIDArray(
+        from container: KeyedDecodingContainer<CodingKeys>,
+        forKey key: CodingKeys
+    ) -> [UUID] {
+        if let ids = try? container.decode([UUID].self, forKey: key) {
+            return ids
+        }
+        if let values = try? container.decode([String].self, forKey: key) {
+            return values.compactMap(UUID.init(uuidString:))
+        }
+        if let raw = try? container.decode(String.self, forKey: key) {
+            let trimmed = raw.trimmingCharacters(in: CharacterSet(charactersIn: "{}"))
+            guard !trimmed.isEmpty else { return [] }
+            return trimmed
+                .split(separator: ",")
+                .compactMap { UUID(uuidString: $0.trimmingCharacters(in: .whitespaces)) }
+        }
+        return []
+    }
 }
 
 struct RemoteListingInsert: Encodable {

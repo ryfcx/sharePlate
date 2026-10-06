@@ -64,10 +64,19 @@ struct ServiceHours: Codable, Hashable, Identifiable {
         var lines: [String] = []
 
         if callForHours && intervals.isEmpty {
-            lines.append("Call for hours")
+            lines.append(String(localized: "Call for hours"))
         }
 
-        let weekdayNames = ["", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        let weekdayNames = [
+            "",
+            String(localized: "Sun"),
+            String(localized: "Mon"),
+            String(localized: "Tue"),
+            String(localized: "Wed"),
+            String(localized: "Thu"),
+            String(localized: "Fri"),
+            String(localized: "Sat"),
+        ]
         for interval in intervals {
             guard (1...7).contains(interval.weekday) else { continue }
             let day = weekdayNames[interval.weekday]
@@ -77,10 +86,10 @@ struct ServiceHours: Codable, Hashable, Identifiable {
 
             if !interval.weeksOfMonth.isEmpty {
                 let ordinals = interval.weeksOfMonth.map(Self.ordinal).joined(separator: ", ")
-                line += " (\(ordinals) \(day) of month)"
+                line += " " + String(localized: "(\(ordinals) \(day) of month)")
             }
             if interval.everyOtherWeek {
-                line += " (every other week)"
+                line += " " + String(localized: "(every other week)")
             }
             if let note = interval.notes, !note.isEmpty {
                 line += " — \(note)"
@@ -105,13 +114,13 @@ struct ServiceHours: Codable, Hashable, Identifiable {
         return date.formatted(date: .omitted, time: .shortened)
     }
 
-    private static func ordinal(_ week: Int) -> String {
+    nonisolated private static func ordinal(_ week: Int) -> String {
         switch week {
-        case 1: return "1st"
-        case 2: return "2nd"
-        case 3: return "3rd"
-        case 4: return "4th"
-        case 5: return "5th"
+        case 1: return String(localized: "1st")
+        case 2: return String(localized: "2nd")
+        case 3: return String(localized: "3rd")
+        case 4: return String(localized: "4th")
+        case 5: return String(localized: "5th")
         default: return "\(week)"
         }
     }

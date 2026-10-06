@@ -14,10 +14,10 @@ struct ActiveReservationView: View {
 
     @Bindable var listing: FoodListing
 
-    @State private var showCancelConfirm = false
     @State private var showConsumerCancelConfirm = false
     @State private var cancelError: String?
     @State private var isCancelling = false
+    @State private var reserverDisplayName: String?
 
     private var isOwner: Bool {
         session.matches(listing.postedByDeviceID)
@@ -32,6 +32,14 @@ struct ActiveReservationView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                if listing.revealsBookingCode {
+                    BookingCodeCard(
+                        code: listing.bookingCode,
+                        caption: isOwner
+                            ? "Match this with the neighbor."
+                            : "Show this at handoff."
+                    )
+                }
                 statusHeader
                 instructionsCard
                 if listing.isDropOff, isOwner, instructions.consumerDropOffComplete,
@@ -64,14 +72,6 @@ struct ActiveReservationView: View {
         .task(id: listing.remoteID) {
             await refreshHandoffState()
         }
-        .confirmationDialog("Cancel this reservation?", isPresented: $showCancelConfirm, titleVisibility: .visible) {
-            Button("Cancel reservation", role: .destructive) {
-                Task { await cancelReservation() }
-            }
-            Button("Keep reservation", role: .cancel) {}
-        } message: {
-            Text("The listing will become available again for others.")
-        }
         .confirmationDialog("Release this reservation?", isPresented: $showConsumerCancelConfirm, titleVisibility: .visible) {
             Button("Release reservation", role: .destructive) {
                 Task { await cancelReservation() }
@@ -92,20 +92,43 @@ struct ActiveReservationView: View {
 
     private var navigationTitle: String {
         if listing.isDropOff {
-            return isOwner ? "Active drop off" : "Your drop off"
+            return isOwner ? String(localized: "Active drop off") : String(localized: "Your drop off")
         }
-        return isOwner ? "Active pickup" : "Your pickup"
+        return isOwner ? String(localized: "Active pickup") : String(localized: "Your pickup")
     }
 
     // MARK: - Header
 
+    private var statusHeaderTitle: String {
+        if isOwner {
+            return listing.isDropOff
+                ? String(localized: "Someone reserved your drop off")
+                : String(localized: "Someone reserved your food")
+        }
+        return String(localized: "\(listing.packagesLabel) reserved")
+    }
+
     private var statusHeader: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text(isOwner
-                 ? (listing.isDropOff ? "Someone reserved your drop off" : "Someone reserved your food")
-                 : "\(listing.packagesLabel) reserved")
+            Text(statusHeaderTitle)
                 .font(AppFont.title2)
                 .foregroundStyle(Theme.Palette.primaryText)
+            if isOwner {
+                Label(
+                    "Reserved by \(reserverDisplayName ?? String(localized: "Neighbor"))",
+                    systemImage: "person.crop.circle.fill"
+                )
+                .font(AppFont.subheadlineMedium)
+                .foregroundStyle(Theme.Palette.primaryGreen)
+
+                Label(remainingPackagesText, systemImage: "shippingbox.fill")
+                    .font(AppFont.subheadlineMedium)
+                    .foregroundStyle(
+                        listing.effectivePackagesRemaining > 0
+                            ? Theme.Palette.primaryGreen
+                            : Theme.Palette.mutedText
+                    )
+            }
             Text(isOwner
                  ? (listing.isDropOff
                     ? "Head to their address below. Send travel updates so they know when you're coming."
@@ -122,6 +145,7 @@ struct ActiveReservationView: View {
             Text(listing.title)
                 .font(AppFont.caption)
                 .foregroundStyle(Theme.Palette.mutedText)
+                .lineLimit(2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
@@ -161,14 +185,22 @@ struct ActiveReservationView: View {
             if instructions.consumerDropOffComplete {
                 instructionLine(number: 1, title: isOwner ? "Drop off at" : "Your address", value: instructions.consumerDropOffAddress)
             } else {
-                instructionLine(number: 1, title: "Drop off at", value: "Waiting for address…")
+                instructionLine(
+                    number: 1,
+                    title: "Drop off at",
+                    value: String(localized: "Waiting for address…")
+                )
             }
 
             instructionLine(number: 2, title: "Ready by", value: timeslotText)
             instructionLine(number: 3, title: "Handoff", value: instructions.handoffSpot?.displayName ?? "—")
 
             if let radius = listing.dropOffRadiusLabel {
-                instructionLine(number: 4, title: "Travel radius", value: "Within \(radius) of near \(listing.areaLabel)")
+                instructionLine(
+                    number: 4,
+                    title: "Travel radius",
+                    value: String(localized: "Within \(radius) of near \(listing.areaLabel)")
+                )
             }
 
             if !instructions.providerNote.isEmpty {
@@ -184,7 +216,6 @@ struct ActiveReservationView: View {
 
     private var providerActions: some View {
         VStack(spacing: Theme.Spacing.md) {
-            cancelButton
             CompleteHandoffButton(listing: listing)
         }
     }
@@ -196,7 +227,7 @@ struct ActiveReservationView: View {
         }
     }
 
-    private func instructionLine(number: Int, title: String, value: String) -> some View {
+    private func instructionLine(number: Int, title: LocalizedStringKey, value: String, translate: Bool = false) -> some View {
         HStack(alignment: .top, spacing: Theme.Spacing.md) {
             Text("\(number)")
                 .font(AppFont.captionBold)
@@ -207,44 +238,24 @@ struct ActiveReservationView: View {
                 Text(title)
                     .font(AppFont.caption)
                     .foregroundStyle(Theme.Palette.mutedText)
-                Text(value)
-                    .font(AppFont.body)
-                    .foregroundStyle(Theme.Palette.primaryText)
+                if translate {
+                    TranslatableText(text: value, font: AppFont.body, color: Theme.Palette.primaryText)
+                } else {
+                    Text(value)
+                        .font(AppFont.body)
+                        .foregroundStyle(Theme.Palette.primaryText)
+                }
             }
         }
     }
 
-    /// Same layout as `instructionLine`, for the free-text provider note,
-    /// which can be translated on-device instead of looked up in the catalog.
-    private func translatableInstructionLine(number: Int, title: String, value: String) -> some View {
-        HStack(alignment: .top, spacing: Theme.Spacing.md) {
-            Text("\(number)")
-                .font(AppFont.captionBold)
-                .frame(width: 24, height: 24)
-                .background(Theme.Palette.softFill)
-                .boxBorder()
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Theme.Palette.mutedText)
-                TranslatableText(text: value, font: AppFont.body, color: Theme.Palette.primaryText)
-            }
-        }
+    private func translatableInstructionLine(number: Int, title: LocalizedStringKey, value: String) -> some View {
+        instructionLine(number: number, title: title, value: value, translate: true)
     }
 
     private var timeslotText: String {
         guard let timeslot = instructions.timeslot else { return "—" }
         return timeslot.formatted(date: .abbreviated, time: .shortened)
-    }
-
-    private var cancelButton: some View {
-        Button {
-            showCancelConfirm = true
-        } label: {
-            cancelLabel("CANCEL RESERVATION")
-        }
-        .buttonStyle(.plain)
-        .disabled(isCancelling)
     }
 
     private var releaseButton: some View {
@@ -257,7 +268,7 @@ struct ActiveReservationView: View {
         .disabled(isCancelling)
     }
 
-    private func cancelLabel(_ title: String) -> some View {
+    private func cancelLabel(_ title: LocalizedStringKey) -> some View {
         Group {
             if isCancelling {
                 ProgressView()
@@ -278,7 +289,7 @@ struct ActiveReservationView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(listing.category.displayName)
                     .font(AppFont.headline)
-                Text(listing.isDropOff ? "Drop off" : "Pickup")
+                Text(listing.isDropOff ? String(localized: "Drop off") : String(localized: "Pickup"))
                     .font(AppFont.caption)
                     .foregroundStyle(Theme.Palette.mutedText)
             }
@@ -296,12 +307,25 @@ struct ActiveReservationView: View {
         return listing.pickupDeadline
     }
 
+    private var remainingPackagesText: String {
+        let remaining = listing.effectivePackagesRemaining
+        if remaining == 0 {
+            return String(localized: "No packages left after this handoff")
+        }
+        if remaining == 1 {
+            return String(localized: "1 package left after this handoff")
+        }
+        return String(localized: "\(remaining) packages left after this handoff")
+    }
+
     private var handoffCountdownPrefix: String {
         if let timeslot = instructions.timeslot, timeslot > Date() {
-            return listing.isDropOff && isOwner ? "Deliver by " : "Arrive in "
+            return listing.isDropOff && isOwner
+                ? String(localized: "Deliver by ")
+                : String(localized: "Arrive in ")
         }
         if let until = listing.reservedUntil, listing.reservationActive, until > Date() {
-            return "Hold expires in "
+            return String(localized: "Hold expires in ")
         }
         return ""
     }
@@ -337,5 +361,11 @@ struct ActiveReservationView: View {
 
     private func refreshHandoffState() async {
         await store.syncListing(listing)
+        guard isOwner,
+              let remoteID = listing.remoteID,
+              let listingID = UUID(uuidString: remoteID) else {
+            return
+        }
+        reserverDisplayName = await SupabaseListingService.fetchReserverDisplayName(listingID: listingID)
     }
 }

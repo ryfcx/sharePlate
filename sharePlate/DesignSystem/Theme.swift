@@ -103,6 +103,7 @@ enum AppFont {
         .custom(face.rawValue, size: size, relativeTo: style)
     }
 
+    static var display: Font { manrope(.extrabold, 48, .largeTitle) }
     static var largeTitle: Font { manrope(.extrabold, 30, .largeTitle) }
     static var title: Font { manrope(.bold, 24, .title) }
     static var title2: Font { manrope(.bold, 20, .title2) }

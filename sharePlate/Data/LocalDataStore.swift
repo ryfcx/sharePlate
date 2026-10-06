@@ -24,7 +24,7 @@ final class LocalDataStore: DataStore {
     /// reset resources here when the signature changes.
     /// Bump when import mapping logic changes so existing installs re-import
     /// even if the bundled database file has not changed.
-    private let resourceImportVersion = 5
+    private let resourceImportVersion = 7
     private let resourceImportVersionKey = "gcfdResourceImportVersion"
     private let seedSignatureKey = "gcfdDatasetSignature"
 
@@ -41,7 +41,10 @@ final class LocalDataStore: DataStore {
         let needsImport = count == 0
             || storedSignature != currentSignature
             || storedImportVersion != resourceImportVersion
-        guard needsImport else { return }
+        guard needsImport else {
+            ensurePermanentStoreListings()
+            return
+        }
 
         // Replace any older dataset (e.g. the original curated seed) wholesale.
         for resource in resources() {
@@ -56,18 +59,24 @@ final class LocalDataStore: DataStore {
             }
         } else {
             for location in gcfd {
+                let schedule = FoodResource.importedSchedule(
+                    locationID: location.locationID,
+                    hours: location.hours,
+                    intervals: location.intervals,
+                    serviceHours: location.serviceHours
+                )
                 context.insert(
                     FoodResource(
                         name: location.name,
                         address: location.address,
                         latitude: location.latitude,
                         longitude: location.longitude,
-                        hours: location.hours,
+                        hours: schedule.hours,
                         phone: location.phone,
                         summary: location.summary,
                         type: location.type,
-                        openingIntervals: location.intervals,
-                        serviceHours: location.serviceHours,
+                        openingIntervals: schedule.intervals,
+                        serviceHours: schedule.serviceHours,
                         gcfdLocationID: location.locationID
                     )
                 )
@@ -77,6 +86,42 @@ final class LocalDataStore: DataStore {
         UserDefaults.standard.set(currentSignature, forKey: seedSignatureKey)
         UserDefaults.standard.set(resourceImportVersion, forKey: resourceImportVersionKey)
         reapplyPantryClaimsToResources()
+        ensurePermanentStoreListings()
+    }
+
+    /// Removes pantry listings that were drawn with a cart pin.
+    /// The always-open sites stay on the map as the normal green pantry dots.
+    func ensurePermanentStoreListings() {
+        let generated = listings().filter(\.isPermanent)
+        guard !generated.isEmpty else { return }
+        for listing in generated {
+            context.delete(listing)
+        }
+        try? context.save()
+    }
+
+    /// Drops donor listings that expiration or a catalog refresh has finished.
+    /// Permanent store listings stay even when their deadline is in the past or they have no remote row.
+    func pruneListingsAbsentFromCatalog(remoteIDs: Set<String>) {
+        for listing in listings() {
+            if listing.isPermanent { continue }
+            guard let remoteID = listing.remoteID else { continue }
+            if remoteIDs.contains(remoteID) { continue }
+            if remembersHistory(listing) {
+                if listing.status == .available {
+                    listing.status = .expired
+                }
+                continue
+            }
+            context.delete(listing)
+        }
+        try? context.save()
+    }
+
+    /// Posts and reservations this device made stay on the Activity history
+    /// after they leave the live catalog.
+    private func remembersHistory(_ listing: FoodListing) -> Bool {
+        session.matches(listing.postedByDeviceID) || session.matches(listing.claimedByDeviceID)
     }
 
     func runMaintenance() {
@@ -90,6 +135,7 @@ final class LocalDataStore: DataStore {
             // Only expire unclaimed listings by deadline — active handoffs (claimed
             // reserved/ready-for-pickup) stay completable past the deadline; see
             // `FoodListing.hasActiveHandoff`.
+            if listing.isPermanent { continue }
             if listing.status == .available, listing.isExpired {
                 listing.status = .expired
                 changed = true
@@ -160,10 +206,17 @@ final class LocalDataStore: DataStore {
     private var lastListingsSync: Date?
     private var lastMaintenanceRun: Date?
     private var inFlightListingsSync: Task<Void, Never>?
+    private var completedListingRemoteIDs: Set<String> = []
 
     private func performListingsSync() async {
         do {
-            let remoteRows = try await SupabaseListingService.fetchActive()
+            let allRemoteRows = try await SupabaseListingService.fetchActive()
+            if let completedIDs = await SupabaseListingService.fetchCompletedListingIDs() {
+                completedListingRemoteIDs = Set(completedIDs.map(\.uuidString))
+            }
+            let remoteRows = allRemoteRows.filter {
+                !completedListingRemoteIDs.contains($0.id.uuidString)
+            }
             var remoteIDs = Set(remoteRows.map { $0.id.uuidString })
 
             for remote in remoteRows {
@@ -171,7 +224,16 @@ final class LocalDataStore: DataStore {
             }
 
             for listing in listings() {
+                if listing.isPermanent { continue }
                 guard let remoteID = listing.remoteID, let id = UUID(uuidString: remoteID) else { continue }
+                if completedListingRemoteIDs.contains(remoteID) {
+                    if remembersHistory(listing) {
+                        listing.status = .pickedUp
+                    } else {
+                        context.delete(listing)
+                    }
+                    continue
+                }
                 guard remoteIDs.contains(remoteID) else {
                     let involved = session.matches(listing.postedByDeviceID)
                         || session.matches(listing.claimedByDeviceID)
@@ -188,22 +250,7 @@ final class LocalDataStore: DataStore {
                 }
             }
 
-            for listing in listings() {
-                guard let remoteID = listing.remoteID else { continue }
-                let status = listing.effectiveStatus
-                if status == .pickedUp || status == .expired {
-                    context.delete(listing)
-                    continue
-                }
-                if !remoteIDs.contains(remoteID) {
-                    let involved = session.matches(listing.postedByDeviceID)
-                        || session.matches(listing.claimedByDeviceID)
-                    if involved && (status == .reserved || status == .readyForPickup) {
-                        continue
-                    }
-                    context.delete(listing)
-                }
-            }
+            pruneListingsAbsentFromCatalog(remoteIDs: remoteIDs)
 
             try? context.save()
         } catch {
@@ -297,16 +344,32 @@ final class LocalDataStore: DataStore {
         try? context.save()
     }
 
+    /// Re-establishes anonymous auth when launch-time authentication failed
+    /// (for example, because the device was briefly offline).
+    private func authenticatedIdentity() async throws -> (userID: String, uuid: UUID) {
+        do {
+            let authSession = try await SupabaseAuthService.ensureSession()
+            let uuid = authSession.user.id
+            let userID = uuid.uuidString
+            let identityChanged = session.currentUserID?.caseInsensitiveCompare(userID) != .orderedSame
+            session.currentUserID = userID
+            if identityChanged {
+                await PushNotificationService.shared.uploadTokenIfNeeded()
+                await HandoffLiveUpdatesService.shared.refreshSubscriptions()
+            }
+            return (userID, uuid)
+        } catch {
+            throw PostListingError.notSignedIn
+        }
+    }
+
     /// Claims an unclaimed pantry from the GCFD directory on behalf of this
     /// device's identity. Fails if someone already claimed it first.
     func claimPantry(_ resource: FoodResource) async throws {
         guard let locationID = resource.gcfdLocationID else {
             throw PantryClaimError.notClaimable
         }
-        guard SupabaseManager.client.auth.currentSession != nil,
-              let userID = session.currentUserID, let claimedBy = UUID(uuidString: userID) else {
-            throw PostListingError.notSignedIn
-        }
+        let (_, claimedBy) = try await authenticatedIdentity()
 
         let remote = try await SupabasePantryClaimService.claim(RemotePantryClaimInsert(
             gcfdLocationID: locationID,
@@ -352,7 +415,9 @@ final class LocalDataStore: DataStore {
 
     /// Active (unexpired, unpicked-up) surplus listings posted by a claimed pantry.
     func pantryListings(for claim: PantryClaim) -> [FoodListing] {
-        listings().filter { $0.pantryGCFDLocationID == claim.gcfdLocationID && $0.effectiveStatus != .pickedUp }
+        listings().filter {
+            $0.pantryGCFDLocationID == claim.gcfdLocationID && !$0.isPermanent && $0.effectiveStatus != .pickedUp
+        }
     }
 
     @discardableResult
@@ -391,12 +456,7 @@ final class LocalDataStore: DataStore {
             packagesRemaining: packageCount
         ))
 
-        guard SupabaseManager.client.auth.currentSession != nil else {
-            throw PostListingError.notSignedIn
-        }
-        guard let userID = session.currentUserID, let postedBy = UUID(uuidString: userID) else {
-            throw PostListingError.missingUser
-        }
+        let (userID, postedBy) = try await authenticatedIdentity()
         guard let photo, !photo.isEmpty else {
             throw PostListingError.missingPhoto
         }
@@ -484,11 +544,10 @@ final class LocalDataStore: DataStore {
     }
 
     func reserve(_ listing: FoodListing, packageCount requestedPackages: Int = 1, dropOff: DropOffReservationDetails? = nil) async throws {
-        guard SupabaseManager.client.auth.currentSession != nil else {
-            throw PostListingError.notSignedIn
-        }
-        guard let userID = session.currentUserID else {
-            throw PostListingError.notSignedIn
+        if listing.isPermanent { throw ReserveError.notAvailable }
+        let (userID, _) = try await authenticatedIdentity()
+        guard let remoteID = listing.remoteID, let listingID = UUID(uuidString: remoteID) else {
+            throw PostListingError.missingRemoteListing
         }
         if listing.isExpired { throw ReserveError.expired }
         guard listing.effectiveStatus == .available else { throw ReserveError.notAvailable }
@@ -540,7 +599,14 @@ final class LocalDataStore: DataStore {
         try? context.save()
 
         do {
-            try await pushRemoteAndWait(listing)
+            try await SupabaseListingService.reserve(
+                id: listingID,
+                details: listing.details,
+                quantity: listing.quantity,
+                contactInstructions: listing.contactInstructions,
+                reservedUntil: listing.reservedUntil ?? listing.pickupDeadline,
+                reserverName: session.displayName
+            )
         } catch {
             if listing.packageCount > 0 {
                 listing.packagesRemaining = remaining
@@ -557,13 +623,13 @@ final class LocalDataStore: DataStore {
             throw SyncError.remoteUpdateFailed(error.localizedDescription)
         }
 
-        if let remoteID = listing.remoteID {
-            LocalNotice.post(.foodReserved(title: listing.title, listingRemoteID: remoteID))
-        }
         await HandoffLiveUpdatesService.shared.refreshSubscriptions()
     }
 
     func releaseReservation(_ listing: FoodListing) async throws {
+        guard let remoteID = listing.remoteID, let listingID = UUID(uuidString: remoteID) else {
+            throw PostListingError.missingRemoteListing
+        }
         let previousStatus = listing.status
         let previousClaimedBy = listing.claimedByDeviceID
         let previousReservedUntil = listing.reservedUntil
@@ -584,7 +650,13 @@ final class LocalDataStore: DataStore {
         try? context.save()
 
         do {
-            try await pushRemoteAndWait(listing)
+            try await SupabaseListingService.releaseReservation(
+                id: listingID,
+                details: listing.details,
+                quantity: listing.quantity,
+                contactInstructions: listing.contactInstructions,
+                waitlistUserIDs: listing.waitlistDeviceIDs.compactMap(UUID.init(uuidString:))
+            )
         } catch {
             listing.status = previousStatus
             listing.claimedByDeviceID = previousClaimedBy
@@ -597,9 +669,6 @@ final class LocalDataStore: DataStore {
             throw SyncError.remoteUpdateFailed(error.localizedDescription)
         }
 
-        if let remoteID = listing.remoteID {
-            LocalNotice.post(.reservationReleased(title: listing.title, listingRemoteID: remoteID))
-        }
         await HandoffLiveUpdatesService.shared.refreshSubscriptions()
     }
 
@@ -626,7 +695,6 @@ final class LocalDataStore: DataStore {
         }
         try? context.save()
         try await pushRemoteAndWait(listing)
-        notifyInstructionsPublished(listing: listing)
     }
 
     func markReady(_ listing: FoodListing) async throws {
@@ -637,54 +705,54 @@ final class LocalDataStore: DataStore {
 
     func markPickedUp(_ listing: FoodListing) async throws {
         guard listing.canMarkPickedUp(for: session) else {
-            throw SyncError.remoteUpdateFailed("This handoff can't be completed right now.")
+            throw SyncError.remoteUpdateFailed(String(localized: "This handoff can't be completed right now."))
         }
         guard let remoteID = listing.remoteID, let id = UUID(uuidString: remoteID) else {
             throw PostListingError.missingRemoteListing
         }
 
-        let title = listing.title
+        let completedByThisConsumer = session.matches(listing.claimedByDeviceID)
 
         if listing.shouldReopenAfterHandoffCompletion {
             let previousContactInstructions = listing.contactInstructions
-            let previousDetails = listing.details
-            let previousQuantity = listing.quantity
             let previousStatus = listing.status
             let previousClaimedBy = listing.claimedByDeviceID
             let previousReservedUntil = listing.reservedUntil
-            let previousWaitlist = listing.waitlistDeviceIDs
 
-            let providerInstructions = listing.publishedPickupInstructions
-            listing.contactInstructions = ReservationCoordinationCodec.encode(providerInstructions)
-            listing.refreshDetailsField()
-            listing.quantity = FoodListing.quantityLabel(
-                packageCount: listing.packageCount,
-                maxPerBooking: listing.effectiveMaxPerBooking
-            )
-            reopen(listing)
-            try? context.save()
+            var providerInstructions = listing.publishedPickupInstructions
+            providerInstructions.clearConsumerDropOff()
+            providerInstructions.reservedPackageCount = nil
+
+            if completedByThisConsumer {
+                completedListingRemoteIDs.insert(remoteID)
+            }
 
             do {
-                try await SupabaseListingService.reopenAfterPartialHandoff(
+                // The server records the completed consumer and atomically
+                // reopens only when its authoritative remaining count is > 0.
+                try await SupabaseListingService.markHandoffComplete(
                     id: id,
-                    details: listing.details,
-                    contactInstructions: listing.contactInstructions,
-                    quantity: listing.quantity,
                     pickupDeadline: listing.pickupDeadline
                 )
             } catch {
+                completedListingRemoteIDs.remove(remoteID)
                 listing.contactInstructions = previousContactInstructions
-                listing.details = previousDetails
-                listing.quantity = previousQuantity
                 listing.status = previousStatus
                 listing.claimedByDeviceID = previousClaimedBy
                 listing.reservedUntil = previousReservedUntil
-                listing.waitlistDeviceIDs = previousWaitlist
                 try? context.save()
                 throw SyncError.remoteUpdateFailed(error.localizedDescription)
             }
 
-            LocalNotice.post(.nowAvailable(title: title))
+            if completedByThisConsumer {
+                markListingCompletedLocally(remoteID: remoteID)
+            } else {
+                listing.contactInstructions = ReservationCoordinationCodec.encode(providerInstructions)
+                listing.status = .available
+                listing.claimedByDeviceID = nil
+                listing.reservedUntil = nil
+                try? context.save()
+            }
             await HandoffLiveUpdatesService.shared.refreshSubscriptions()
             return
         }
@@ -697,8 +765,7 @@ final class LocalDataStore: DataStore {
             throw SyncError.remoteUpdateFailed(error.localizedDescription)
         }
 
-        removeLocalListing(remoteID: remoteID)
-        LocalNotice.post(.foodPickedUp(title: title, listingRemoteID: remoteID))
+        markListingCompletedLocally(remoteID: remoteID)
         await HandoffLiveUpdatesService.shared.refreshSubscriptions()
     }
 
@@ -710,7 +777,6 @@ final class LocalDataStore: DataStore {
             try? context.save()
             pushRemote(listing)
         }
-        LocalNotice.post(.waitlistJoined(title: listing.title))
     }
 
     func delete(_ listing: FoodListing) {
@@ -740,7 +806,6 @@ final class LocalDataStore: DataStore {
         listing.claimedByDeviceID = nil
         listing.reservedUntil = nil
         if !listing.waitlistDeviceIDs.isEmpty {
-            LocalNotice.post(.nowAvailable(title: listing.title))
             listing.waitlistDeviceIDs.removeFirst()
         }
     }
@@ -783,8 +848,6 @@ final class LocalDataStore: DataStore {
 
     private func apply(_ remote: RemoteListing, to listing: FoodListing) {
         let previousClaimed = listing.claimedByDeviceID
-        let previousCoord = listing.coordination
-        let remoteStatus = ListingStatus.from(raw: remote.status)
 
         listing.title = remote.title
         listing.details = remote.details
@@ -805,52 +868,26 @@ final class LocalDataStore: DataStore {
         listing.photoURL = remote.photoURL
         listing.syncPackageFieldsFromDetails()
 
-        let involved = session.matches(listing.postedByDeviceID) || session.matches(listing.claimedByDeviceID)
-        let localActiveHandoff = involved
-            && (listing.status == .reserved || listing.status == .readyForPickup)
-            && listing.claimedByDeviceID != nil
-        let remoteStaleForLocalHandoff = remote.claimedBy == nil && remoteStatus == .available
-
-        if remoteStatus == .pickedUp || remoteStatus == .expired {
-            listing.contactInstructions = remote.contactInstructions
-            listing.statusRaw = remote.status
-            listing.claimedByDeviceID = remote.claimedBy?.uuidString
-            listing.reservedUntil = remote.reservedUntil
-        } else if localActiveHandoff && remoteStaleForLocalHandoff {
-            if let remoteInstructions = remote.contactInstructions,
-               !remoteInstructions.isEmpty,
-               remoteInstructions != listing.contactInstructions {
-                listing.contactInstructions = remoteInstructions
-            }
-        } else {
-            listing.contactInstructions = remote.contactInstructions
-            listing.statusRaw = remote.status
-            listing.claimedByDeviceID = remote.claimedBy?.uuidString
-            listing.reservedUntil = remote.reservedUntil
-            if remote.claimedBy != nil, listing.status == .available {
-                listing.status = .reserved
-            }
+        // The database RPCs make reservation transitions atomic, so the remote
+        // row is authoritative. In particular, a partial completion changes
+        // reserved → available and must not be mistaken for a stale update.
+        listing.contactInstructions = remote.contactInstructions
+        listing.statusRaw = remote.status
+        listing.claimedByDeviceID = remote.claimedBy?.uuidString
+        listing.reservedUntil = remote.reservedUntil
+        if remote.claimedBy != nil, listing.status == .available {
+            listing.status = .reserved
         }
 
         notifyReservationChanges(
             listing: listing,
-            previousClaimed: previousClaimed,
-            previousCoord: previousCoord
+            previousClaimed: previousClaimed
         )
-    }
-
-    private func notifyInstructionsPublished(listing: FoodListing) {
-        guard let remoteID = listing.remoteID else { return }
-        guard listing.coordination.isReadyForConsumer else { return }
-        if session.matches(listing.claimedByDeviceID) {
-            LocalNotice.post(.instructionsUpdated(title: listing.title, listingRemoteID: remoteID))
-        }
     }
 
     private func notifyReservationChanges(
         listing: FoodListing,
-        previousClaimed: String?,
-        previousCoord: ReservationCoordination
+        previousClaimed: String?
     ) {
         let isActive = listing.effectiveStatus == .reserved || listing.effectiveStatus == .readyForPickup
 
@@ -858,15 +895,10 @@ final class LocalDataStore: DataStore {
            previousClaimed == nil,
            listing.claimedByDeviceID != nil,
            isActive,
-           let remoteID = listing.remoteID {
-            LocalNotice.post(.yourListingWasReserved(title: listing.title, listingRemoteID: remoteID))
-        }
-
-        if session.matches(listing.claimedByDeviceID),
-           !previousCoord.isReadyForConsumer,
-           listing.coordination.isReadyForConsumer,
-           let remoteID = listing.remoteID {
-            LocalNotice.post(.instructionsUpdated(title: listing.title, listingRemoteID: remoteID))
+           listing.remoteID != nil {
+            Task {
+                await NearbyAlertService.notifyListingReserved(listing)
+            }
         }
     }
 
@@ -894,19 +926,35 @@ final class LocalDataStore: DataStore {
         let status = ListingStatus.from(raw: remote.status)
         let remoteID = remote.id.uuidString
 
+        if completedListingRemoteIDs.contains(remoteID) {
+            markListingCompletedLocally(remoteID: remoteID)
+            return
+        }
+
+        // A reserved listing becoming available while this device was the
+        // claimer means that allocation was completed by the provider. Hide it
+        // immediately here; the completion-history sync makes this persistent.
+        if status == .available,
+           remote.claimedBy == nil,
+           let existing = listing(withRemoteID: remoteID),
+           session.matches(existing.claimedByDeviceID) {
+            completedListingRemoteIDs.insert(remoteID)
+            markListingCompletedLocally(remoteID: remoteID)
+            return
+        }
+
         if status == .pickedUp {
-            if let listing = listing(withRemoteID: remoteID) {
-                let title = listing.title
-                if session.matches(listing.claimedByDeviceID) || session.matches(listing.postedByDeviceID) {
-                    LocalNotice.post(.foodPickedUp(title: title, listingRemoteID: remoteID))
-                }
-            }
-            removeLocalListing(remoteID: remoteID)
+            markListingCompletedLocally(remoteID: remoteID)
             return
         }
 
         if status == .expired {
-            removeLocalListing(remoteID: remoteID)
+            if let listing = listing(withRemoteID: remoteID), remembersHistory(listing) {
+                listing.status = .expired
+                try? context.save()
+            } else {
+                removeLocalListing(remoteID: remoteID)
+            }
             return
         }
 
@@ -917,6 +965,15 @@ final class LocalDataStore: DataStore {
     func removeLocalListing(remoteID: String) {
         guard let listing = listing(withRemoteID: remoteID) else { return }
         context.delete(listing)
+        try? context.save()
+    }
+
+    /// Hide a completed listing without deleting a model that an active
+    /// navigation destination may still be observing. Normal sync removes the
+    /// tombstone after the detail screen has had time to dismiss.
+    private func markListingCompletedLocally(remoteID: String) {
+        guard let listing = listing(withRemoteID: remoteID) else { return }
+        listing.status = .pickedUp
         try? context.save()
     }
 

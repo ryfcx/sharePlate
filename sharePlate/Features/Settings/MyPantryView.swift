@@ -36,7 +36,9 @@ struct MyPantryView: View {
     }
 
     private var myListings: [FoodListing] {
-        allListings.filter { $0.pantryGCFDLocationID == claim.gcfdLocationID && $0.effectiveStatus != .pickedUp }
+        allListings.filter {
+            $0.pantryGCFDLocationID == claim.gcfdLocationID && !$0.isPermanent && $0.effectiveStatus != .pickedUp
+        }
     }
 
     var body: some View {

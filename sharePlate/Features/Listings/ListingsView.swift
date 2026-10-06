@@ -82,11 +82,14 @@ struct ListingsView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showCreate = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .foregroundStyle(Theme.Palette.primaryGreen)
+                    HStack(spacing: Theme.Spacing.md) {
+                        Button {
+                            showCreate = true
+                        } label: {
+                            Image(systemName: "plus")
+                                .foregroundStyle(Theme.Palette.primaryGreen)
+                        }
+                        SharePlateLogoView()
                     }
                 }
             }

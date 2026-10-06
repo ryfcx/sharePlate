@@ -15,9 +15,9 @@ import Supabase
 @Observable
 final class SupabaseAuthService {
     private let session: SessionContext
-    private let client = SupabaseManager.client
 
     private(set) var isReady = false
+    private(set) var authenticationError: String?
 
     init(session: SessionContext) {
         self.session = session
@@ -25,34 +25,38 @@ final class SupabaseAuthService {
     }
 
     private func restoreOrCreateSession() async {
+        do {
+            let authSession = try await Self.ensureSession()
+            setCurrent(authSession)
+        } catch {
+            authenticationError = error.localizedDescription
+            // Browsing remains available while offline or while anonymous auth
+            // is unavailable. Mutating actions retry authentication on demand.
+            isReady = true
+        }
+    }
+
+    /// Returns a valid Supabase session, creating an anonymous user when this
+    /// device has never authenticated. Called again by write operations so one
+    /// failed launch attempt does not leave the app unauthenticated forever.
+    static func ensureSession() async throws -> Session {
+        let client = SupabaseManager.client
         if var authSession = client.auth.currentSession {
             if authSession.isExpired {
                 do {
                     authSession = try await client.auth.refreshSession()
                 } catch {
-                    await signInAnonymously()
-                    return
+                    return try await client.auth.signInAnonymously()
                 }
             }
-            setCurrent(authSession)
-            return
+            return authSession
         }
-        await signInAnonymously()
-    }
-
-    private func signInAnonymously() async {
-        do {
-            let authSession = try await client.auth.signInAnonymously()
-            setCurrent(authSession)
-        } catch {
-            // Leave currentUserID nil; posting/reserving will surface a clear
-            // error until connectivity allows the anonymous session to succeed.
-            isReady = true
-        }
+        return try await client.auth.signInAnonymously()
     }
 
     private func setCurrent(_ authSession: Session) {
         session.currentUserID = authSession.user.id.uuidString
+        authenticationError = nil
         isReady = true
         Task {
             await PushNotificationService.shared.uploadTokenIfNeeded()

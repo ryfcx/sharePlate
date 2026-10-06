@@ -124,6 +124,7 @@ struct SettingsView: View {
                             Text(claim.pantryName)
                                 .font(AppFont.body)
                                 .foregroundStyle(Theme.Palette.primaryText)
+                                .lineLimit(2)
                             Text(claim.isTemporarilyClosed ? "Temporarily closed" : "Managing")
                                 .font(AppFont.caption)
                                 .foregroundStyle(claim.isTemporarilyClosed ? Theme.Palette.urgentRed : Theme.Palette.mutedText)
@@ -184,7 +185,7 @@ struct SettingsView: View {
 
     private func commitName() {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        session.displayName = trimmed.isEmpty ? "Neighbor" : trimmed
+        session.displayName = trimmed.isEmpty ? String(localized: "Neighbor") : trimmed
         name = session.displayName
     }
 

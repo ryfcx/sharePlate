@@ -22,29 +22,24 @@ struct ListingDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                ListingPhotoView(listing: listing, height: 220)
+                ListingPhotoView(listing: listing, height: 200)
 
-                HStack(spacing: Theme.Spacing.sm) {
-                    StatusBadge(status: listing.effectiveStatus)
-                    Spacer()
-                    CountdownText(deadline: listing.pickupDeadline)
-                        .font(AppFont.subheadlineMedium)
-                }
+                statusAndCountdown
 
                 VStack(alignment: .leading, spacing: 4) {
-                    if listing.category == .other {
-                        // Only "Other" listings have a user-typed title —
-                        // every other category's title is already a
-                        // localized category name, not free text.
-                        TranslatableText(text: listing.title, font: AppFont.title, color: Theme.Palette.primaryText)
-                    } else {
-                        Text(listing.title)
-                            .font(AppFont.title)
-                            .foregroundStyle(Theme.Palette.primaryText)
-                    }
+                    Text(listing.title)
+                        .font(AppFont.title)
+                        .foregroundStyle(Theme.Palette.primaryText)
                     Text(listing.postedRelativeText)
                         .font(AppFont.caption)
                         .foregroundStyle(Theme.Palette.mutedText)
+                }
+
+                if listing.revealsBookingCode {
+                    BookingCodeCard(
+                        code: listing.bookingCode,
+                        caption: "Use this code at handoff."
+                    )
                 }
 
                 detailsCard
@@ -56,6 +51,7 @@ struct ListingDetailView: View {
 
                 actionArea
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Theme.Spacing.lg)
         }
         .scrollDismissesKeyboard(.interactively)
@@ -75,7 +71,11 @@ struct ListingDetailView: View {
             Button("Reserve") { reserve(packageCount: 1) }
             Button("Cancel", role: .cancel) {}
         } message: {
-            if listing.isDropOff {
+            if listing.isStandingLocation {
+                Text(listing.isDropOff
+                     ? "This drop off stays available. Details unlock after you reserve."
+                     : "This pickup stays available. The exact address unlocks after you reserve.")
+            } else if listing.isDropOff {
                 Text("Can you meet before \(listing.pickupDeadline.formatted(date: .omitted, time: .shortened))? Pickup details unlock after you reserve.")
             } else {
                 Text("Can you arrive before \(listing.pickupDeadline.formatted(date: .omitted, time: .shortened))? The exact address unlocks after you reserve.")
@@ -111,6 +111,34 @@ struct ListingDetailView: View {
 
     // MARK: - Cards
 
+    private var statusAndCountdown: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: Theme.Spacing.sm) {
+                StatusBadge(status: listing.effectiveStatus)
+                Spacer(minLength: Theme.Spacing.sm)
+                availabilityLine
+            }
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                StatusBadge(status: listing.effectiveStatus)
+                availabilityLine
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var availabilityLine: some View {
+        if listing.isPermanent || listing.isStandingLocation {
+            Text("Always available")
+                .font(AppFont.subheadlineMedium)
+                .foregroundStyle(Theme.Palette.primaryGreen)
+        } else {
+            CountdownText(deadline: listing.pickupDeadline)
+                .font(AppFont.subheadlineMedium)
+        }
+    }
+
     private var detailsCard: some View {
         VStack(spacing: Theme.Spacing.lg) {
             infoRow(icon: listing.category.symbol, title: "Food type", value: listing.category.displayName)
@@ -121,13 +149,17 @@ struct ListingDetailView: View {
                 infoRow(
                     icon: "cube.box",
                     title: "Available now",
-                    value: "\(listing.effectivePackagesRemaining) of \(listing.packageCount) packages"
+                    value: String(localized: "\(listing.effectivePackagesRemaining) of \(listing.packageCount) packages")
                 )
             }
             divider
             infoRow(icon: listing.pickupType.symbol, title: listing.isDropOff ? "Handoff" : "Pickup method", value: handoffMethodText)
             divider
-            infoRow(icon: "clock", title: "Pickup deadline", value: listing.pickupDeadline.formatted(date: .abbreviated, time: .shortened))
+            infoRow(
+                icon: "clock",
+                title: listing.isPermanent ? "Hours" : (listing.isStandingLocation ? "Availability" : "Pickup deadline"),
+                value: listing.isPermanent ? "Open 24 Hours" : (listing.isStandingLocation ? "Always available" : listing.pickupDeadline.formatted(date: .abbreviated, time: .shortened))
+            )
         }
         .cardStyle()
     }
@@ -143,11 +175,16 @@ struct ListingDetailView: View {
                     translatableInfoRow(icon: "note.text", title: "Pickup note", value: notes)
                 }
             } else {
-                infoRow(icon: "mappin.circle", title: "Approximate area", value: "Near \(listing.areaLabel)")
+                infoRow(
+                    icon: "mappin.circle",
+                    title: "Approximate area",
+                    value: String(localized: "Near \(listing.areaLabel)")
+                )
                 divider
                 Label("Reserve the pickup to unlock the exact address.", systemImage: "lock.fill")
                     .font(AppFont.subheadlineMedium)
                     .foregroundStyle(Theme.Palette.mutedText)
+                    .fixedSize(horizontal: false, vertical: true)
                 if listing.hasPublishedPickupInstructions {
                     divider
                     publicPickupSummary
@@ -159,22 +196,24 @@ struct ListingDetailView: View {
 
     @ViewBuilder
     private var dropOffLocationContent: some View {
-        let radius = listing.dropOffRadiusLabel ?? "nearby"
+        let radius = listing.dropOffRadiusLabel ?? String(localized: "nearby")
         infoRow(
             icon: "location.circle",
             title: "Drop-off radius",
-            value: "Donor will travel up to \(radius) from near \(listing.areaLabel)"
+            value: String(localized: "Donor will travel up to \(radius) from near \(listing.areaLabel)")
         )
         if canSeeExact {
             divider
             Label("Coordinate the exact meetup spot using messages below.", systemImage: "bubble.left.and.bubble.right")
                 .font(AppFont.subheadlineMedium)
                 .foregroundStyle(Theme.Palette.mutedText)
+                    .fixedSize(horizontal: false, vertical: true)
         } else {
             divider
             Label("Reserve to coordinate where to meet within the donor's travel radius.", systemImage: "lock.fill")
                 .font(AppFont.subheadlineMedium)
                 .foregroundStyle(Theme.Palette.mutedText)
+                .fixedSize(horizontal: false, vertical: true)
             if listing.hasPublishedPickupInstructions {
                 divider
                 publicPickupSummary
@@ -192,7 +231,9 @@ struct ListingDetailView: View {
     private var actionArea: some View {
         let status = listing.effectiveStatus
 
-        if isMine {
+        if listing.isPermanent {
+            EmptyView()
+        } else if isMine {
             ownerControls(status: status)
         } else {
             switch status {
@@ -272,7 +313,7 @@ struct ListingDetailView: View {
             do {
                 try await store.reserve(listing, packageCount: packageCount, dropOff: nil)
             } catch ReserveError.expired {
-                reserveError = "This listing has expired."
+                reserveError = String(localized: "This listing has expired.")
             } catch {
                 reserveError = error.localizedDescription
             }
@@ -291,7 +332,7 @@ struct ListingDetailView: View {
         }
     }
 
-    private func statusNote(_ text: String) -> some View {
+    private func statusNote(_ text: LocalizedStringKey) -> some View {
         Text(text)
             .font(AppFont.subheadlineMedium)
             .foregroundStyle(Theme.Palette.mutedText)
@@ -303,14 +344,14 @@ struct ListingDetailView: View {
 
     private var handoffMethodText: String {
         if listing.isDropOff, let radius = listing.dropOffRadiusLabel {
-            return "Drop off within \(radius)"
+            return String(localized: "Drop off within \(radius)")
         }
         return listing.pickupType.displayName
     }
 
     private var pickupLine: String {
         if let distance = location.distanceText(to: listing.coordinate) {
-            return "\(listing.pickupAddress)\n\(distance) away"
+            return String(localized: "\(listing.pickupAddress)\n\(distance) away")
         }
         return listing.pickupAddress
     }
@@ -348,7 +389,7 @@ struct ListingDetailView: View {
 
     /// Same layout as `infoRow`, but for user-typed free text (notes) that
     /// can be translated on-device rather than looked up in the catalog.
-    private func translatableInfoRow(icon: String, title: String, value: String) -> some View {
+    private func translatableInfoRow(icon: String, title: LocalizedStringKey, value: String) -> some View {
         HStack(alignment: .top, spacing: Theme.Spacing.md) {
             Image(systemName: icon)
                 .font(.system(size: 16, weight: .medium))
@@ -360,11 +401,11 @@ struct ListingDetailView: View {
                     .foregroundStyle(Theme.Palette.mutedText)
                 TranslatableText(text: value, font: AppFont.body, color: Theme.Palette.primaryText)
             }
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    private func infoRow(icon: String, title: String, value: String) -> some View {
+    private func infoRow(icon: String, title: LocalizedStringKey, value: String) -> some View {
         HStack(alignment: .top, spacing: Theme.Spacing.md) {
             Image(systemName: icon)
                 .font(.system(size: 16, weight: .medium))
@@ -377,8 +418,9 @@ struct ListingDetailView: View {
                 Text(value)
                     .font(AppFont.body)
                     .foregroundStyle(Theme.Palette.primaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }

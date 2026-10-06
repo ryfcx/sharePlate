@@ -54,14 +54,14 @@ final class HandoffLiveUpdatesService {
         await unsubscribeAll()
 
         for listingID in desired {
-            await subscribe(to: listingID, store: store)
+            await subscribe(to: listingID)
         }
         subscribedListingIDs = desired
     }
 
     // MARK: - Private
 
-    private func subscribe(to listingID: UUID, store: LocalDataStore) async {
+    private func subscribe(to listingID: UUID) async {
         let client = SupabaseManager.client
         let channel = client.realtimeV2.channel("handoff:\(listingID.uuidString)")
 
@@ -70,11 +70,16 @@ final class HandoffLiveUpdatesService {
             schema: "public",
             table: "listings",
             filter: .eq("id", value: listingID)
-        ) { [weak store] update in
+        ) { update in
             Task { @MainActor in
-                guard let store else { return }
-                guard let remote = try? update.decodeRecord(as: RemoteListing.self, decoder: SupabaseRealtimeJSON.decoder) else { return }
-                store.applyRemoteListing(remote)
+                guard let store = HandoffLiveUpdatesService.shared.store else { return }
+                if let remote = try? update.decodeRecord(as: RemoteListing.self, decoder: SupabaseRealtimeJSON.decoder) {
+                    store.applyRemoteListing(remote)
+                    return
+                }
+                if let id = SupabaseRealtimeJSON.recordID(update.record) {
+                    await store.syncListing(remoteID: id.uuidString)
+                }
             }
         }
 

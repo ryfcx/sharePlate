@@ -58,7 +58,9 @@ enum SupabaseListingService {
             .execute()
             .value
         guard !rows.isEmpty else {
-            throw SyncError.remoteUpdateFailed("This listing changed on the server — someone else may have claimed it.")
+            throw SyncError.remoteUpdateFailed(
+                String(localized: "This listing changed on the server — someone else may have claimed it.")
+            )
         }
     }
 
@@ -74,6 +76,107 @@ enum SupabaseListingService {
             details: nil,
             quantity: nil
         ))
+    }
+
+    static func reserve(
+        id: UUID,
+        details: String,
+        quantity: String,
+        contactInstructions: String?,
+        reservedUntil: Date,
+        reserverName: String
+    ) async throws {
+        struct Params: Encodable {
+            let p_listing_id: UUID
+            let p_details: String
+            let p_quantity: String
+            let p_contact_instructions: String
+            let p_reserved_until: Date
+            let p_reserver_name: String
+        }
+
+        try await client
+            .rpc("reserve_listing", params: Params(
+                p_listing_id: id,
+                p_details: details,
+                p_quantity: quantity,
+                p_contact_instructions: contactInstructions ?? "",
+                p_reserved_until: reservedUntil,
+                p_reserver_name: reserverName
+            ))
+            .execute()
+    }
+
+    /// Reservation identity is stored separately from the public listing row;
+    /// RLS permits this read only for the provider and current reserver.
+    static func fetchReserverDisplayName(listingID: UUID) async -> String? {
+        struct ReservationIdentity: Decodable {
+            let reserverDisplayName: String
+
+            enum CodingKeys: String, CodingKey {
+                case reserverDisplayName = "reserver_display_name"
+            }
+        }
+
+        do {
+            let identity: ReservationIdentity = try await client
+                .from("listing_reservations")
+                .select("reserver_display_name")
+                .eq("listing_id", value: listingID.uuidString)
+                .single()
+                .execute()
+                .value
+            return identity.reserverDisplayName
+        } catch {
+            return nil
+        }
+    }
+
+    static func fetchCompletedListingIDs() async -> Set<UUID>? {
+        struct Completion: Decodable {
+            let listingID: UUID
+
+            enum CodingKeys: String, CodingKey {
+                case listingID = "listing_id"
+            }
+        }
+
+        do {
+            let rows: [Completion] = try await client
+                .from("listing_completions")
+                .select("listing_id")
+                .execute()
+                .value
+            return Set(rows.map(\.listingID))
+        } catch {
+            return nil
+        }
+    }
+
+    static func releaseReservation(
+        id: UUID,
+        details: String,
+        quantity: String,
+        contactInstructions: String?,
+        waitlistUserIDs: [UUID]
+    ) async throws {
+        struct Params: Encodable {
+            let p_listing_id: UUID
+            let p_details: String
+            let p_quantity: String
+            let p_contact_instructions: String
+            let p_waitlist_user_ids: [UUID]
+        }
+
+        try await client
+            .rpc("release_listing_reservation", params: Params(
+                p_listing_id: id,
+                p_details: details,
+                p_quantity: quantity,
+                p_contact_instructions: contactInstructions ?? "",
+                p_waitlist_user_ids: waitlistUserIDs
+            ))
+            .execute()
     }
 
     static func markHandoffComplete(id: UUID, pickupDeadline: Date) async throws {

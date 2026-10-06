@@ -32,8 +32,8 @@ enum DirectionsHelper {
     // MARK: - Apple Maps
 
     static func openAppleMaps(coordinate: CLLocationCoordinate2D, name: String) {
-        let placemark = MKPlacemark(coordinate: coordinate)
-        let item = MKMapItem(placemark: placemark)
+        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        let item = MKMapItem(location: location, address: nil)
         item.name = name
         item.openInMaps(launchOptions: [
             MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving

@@ -172,6 +172,7 @@ extension FoodListing {
         let donor = MapFilterLogic.donorFilters(in: filters)
         let store = MapFilterLogic.storeFilters(in: filters)
         if donor.isEmpty && store.isEmpty { return true }
+        if isPermanent { return matchesPermanentStoreFilters(store) }
 
         var matched = false
         if !donor.isEmpty {
@@ -195,5 +196,17 @@ extension FoodListing {
             }
         }
         return matched
+    }
+
+    /// Permanent stores follow the Store filters only, so a Donor filter still shows neighbor posts alone.
+    private func matchesPermanentStoreFilters(_ store: Set<MapFilterOption>) -> Bool {
+        guard !store.isEmpty else { return false }
+        return store.contains { option in
+            switch option {
+            case .storeGrocery: return category != .preparedMeals
+            case .storeRestaurant: return category == .preparedMeals
+            default: return false
+            }
+        }
     }
 }

@@ -14,7 +14,9 @@ struct SearchBox: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(Theme.Palette.mutedText)
-            TextField(prompt, text: $text)
+            TextField(text: $text, prompt: Text(LocalizedStringKey(prompt))) {
+                EmptyView()
+            }
                 .font(AppFont.body)
                 .foregroundStyle(Theme.Palette.primaryText)
                 .textInputAutocapitalization(.never)

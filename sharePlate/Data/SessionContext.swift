@@ -40,7 +40,7 @@ final class SessionContext {
             UserDefaults.standard.set(new, forKey: key)
             deviceID = new
         }
-        displayName = UserDefaults.standard.string(forKey: displayNameKey) ?? "Neighbor"
+        displayName = UserDefaults.standard.string(forKey: displayNameKey) ?? String(localized: "Neighbor")
     }
 
     /// Case-insensitive match for Supabase user ids (UUID strings may differ in casing).

@@ -25,23 +25,27 @@ extension FoodListing {
     }
 
     var completeHandoffTitle: String {
-        isDropOff ? "Mark as dropped off" : "Mark as picked up"
+        isDropOff
+            ? String(localized: "Mark as dropped off")
+            : String(localized: "Mark as picked up")
     }
 
     var completeHandoffSwipeTitle: String {
-        isDropOff ? "Dropped off" : "Picked up"
+        isDropOff
+            ? String(localized: "Dropped off")
+            : String(localized: "Picked up")
     }
 
     var completeHandoffConfirmationMessage: String {
         if shouldReopenAfterHandoffCompletion {
-            let remaining = packagesRemaining
-            let unit = remaining == 1 ? "package" : "packages"
-            return "Confirm this handoff is complete? \(remaining) \(unit) will stay listed for others."
+            let remaining = effectivePackagesRemaining
+            let unit = remaining == 1 ? String(localized: "package") : String(localized: "packages")
+            return String(localized: "Confirm this handoff is complete? \(remaining) \(unit) will remain available to other neighbors.")
         }
         if isDropOff {
-            return "Confirm the food was dropped off? This listing will be removed for everyone."
+            return String(localized: "Confirm the food was dropped off? This listing will be removed for everyone.")
         }
-        return "Confirm the food was picked up? This listing will be removed for everyone."
+        return String(localized: "Confirm the food was picked up? This listing will be removed for everyone.")
     }
 }
 
@@ -109,7 +113,7 @@ struct CompleteHandoffButton: View {
         let detail = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         let lower = detail.lowercased()
         if lower.contains("row-level security") || lower.contains("complete_listing_handoff") {
-            return "Server permissions blocked this update. In Supabase → SQL Editor, run the full supabase/listings_rls.sql file, then try again."
+            return String(localized: "Server permissions blocked this update. In Supabase → SQL Editor, run the full supabase/listings_rls.sql file, then try again.")
         }
         if let sync = error as? SyncError, case .remoteUpdateFailed(let message) = sync {
             return message

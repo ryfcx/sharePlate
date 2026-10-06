@@ -28,10 +28,13 @@ struct ProviderListingManageView: View {
                         .foregroundStyle(Theme.Palette.mutedText)
                 }
 
-                HStack(spacing: Theme.Spacing.sm) {
-                    StatusBadge(status: listing.effectiveStatus)
-                    CountdownText(deadline: listing.pickupDeadline, live: true)
-                        .font(AppFont.caption)
+                statusAndCountdown
+
+                if listing.revealsBookingCode {
+                    BookingCodeCard(
+                        code: listing.bookingCode,
+                        caption: "Match this with the neighbor."
+                    )
                 }
 
                 pickupDetailsCard
@@ -47,12 +50,30 @@ struct ProviderListingManageView: View {
 
                 actionsCard
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Theme.Spacing.lg)
         }
         .scrollDismissesKeyboard(.interactively)
         .screenBackground()
         .navigationTitle("Manage listing")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var statusAndCountdown: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: Theme.Spacing.sm) {
+                StatusBadge(status: listing.effectiveStatus)
+                CountdownText(deadline: listing.pickupDeadline, live: true)
+                    .font(AppFont.caption)
+            }
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                StatusBadge(status: listing.effectiveStatus)
+                CountdownText(deadline: listing.pickupDeadline, live: true)
+                    .font(AppFont.caption)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var pickupDetailsCard: some View {
@@ -68,7 +89,10 @@ struct ProviderListingManageView: View {
                 detailLine("Handoff", spot.displayName)
             }
             if !instructions.providerNote.isEmpty {
-                detailLine("Note", instructions.providerNote)
+                detailLine("Note", instructions.providerNote, translate: true)
+            }
+            if let notes = listing.pickupNotes, !notes.isEmpty, notes != instructions.providerNote {
+                detailLine("Pickup note", notes, translate: true)
             }
         }
         .cardStyle()
@@ -77,6 +101,12 @@ struct ProviderListingManageView: View {
     private var listingFactsCard: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             detailLine("Packages", listing.packageSummaryLabel)
+            if listing.packageCount > 0 {
+                detailLine(
+                    "Packages remaining",
+                    remainingPackagesText
+                )
+            }
             detailLine("Type", listing.category.displayName)
             detailLine("Area", listing.areaLabel)
             detailLine("Deadline", listing.pickupDeadline.formatted(date: .abbreviated, time: .shortened))
@@ -97,14 +127,27 @@ struct ProviderListingManageView: View {
         }
     }
 
-    private func detailLine(_ title: String, _ value: String) -> some View {
+    private func detailLine(_ title: LocalizedStringKey, _ value: String, translate: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(AppFont.caption)
                 .foregroundStyle(Theme.Palette.mutedText)
-            Text(value)
-                .font(AppFont.body)
-                .foregroundStyle(Theme.Palette.primaryText)
+            if translate {
+                TranslatableText(text: value, font: AppFont.body, color: Theme.Palette.primaryText)
+            } else {
+                Text(value)
+                    .font(AppFont.body)
+                    .foregroundStyle(Theme.Palette.primaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var remainingPackagesText: String {
+        let remaining = listing.effectivePackagesRemaining
+        return remaining == 1
+            ? String(localized: "1 package left")
+            : String(localized: "\(remaining) packages left")
     }
 }

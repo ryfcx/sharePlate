@@ -77,7 +77,6 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
         didReceive response: UNNotificationResponse
     ) async {
         await MainActor.run {
-            LocalNotice.postFromPush(userInfo: response.notification.request.content.userInfo)
             if let listingID = response.notification.request.content.userInfo["listing_id"] as? String {
                 LocalNotice.shared.openHandoff(listingRemoteID: listingID)
             }

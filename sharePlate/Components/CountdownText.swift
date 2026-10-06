@@ -9,7 +9,7 @@ import SwiftUI
 struct CountdownText: View {
     let deadline: Date
     var prefix: String = ""
-    var suffix: String = " left"
+    var suffix: String = String(localized: " left")
     var live: Bool = true
 
     var body: some View {
@@ -39,18 +39,20 @@ struct CountdownText: View {
 
     private func timeColor(now: Date) -> Color {
         let interval = deadline.timeIntervalSince(now)
-        if interval < 2 * 60 * 60 { return Theme.Palette.urgentRed }
+        if interval <= MapBrowseLogic.closingSoonThreshold {
+            return Theme.Palette.accentOrange
+        }
         return Theme.Palette.mutedText
     }
 
     static func relative(from: Date, to: Date) -> String {
         let seconds = Int(to.timeIntervalSince(from))
-        guard seconds > 0 else { return "0m" }
+        guard seconds > 0 else { return String(localized: "0m") }
         let days = seconds / 86400
         let hours = (seconds % 86400) / 3600
         let minutes = (seconds % 3600) / 60
-        if days > 0 { return "\(days)d \(hours)h" }
-        if hours > 0 { return "\(hours)h \(minutes)m" }
-        return "\(minutes)m"
+        if days > 0 { return String(localized: "\(days)d \(hours)h") }
+        if hours > 0 { return String(localized: "\(hours)h \(minutes)m") }
+        return String(localized: "\(minutes)m")
     }
 }

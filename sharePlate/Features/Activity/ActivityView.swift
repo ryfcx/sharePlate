@@ -31,6 +31,20 @@ struct ActivityView: View {
                             listingRow(listing)
                         }
                     }
+
+                    activitySection("History", systemImage: "clock.arrow.circlepath") {
+                        if historyListings.isEmpty {
+                            emptyHint("Food you post and reservations you make show up here.")
+                        }
+                        ForEach(historyListings) { listing in
+                            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                                Text(historyRole(for: listing))
+                                    .font(AppFont.caption)
+                                    .foregroundStyle(Theme.Palette.mutedText)
+                                listingRow(listing)
+                            }
+                        }
+                    }
                 }
                 .padding(.horizontal, Theme.Spacing.lg)
                 .padding(.vertical, Theme.Spacing.md)
@@ -42,12 +56,15 @@ struct ActivityView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
+                    HStack(spacing: Theme.Spacing.md) {
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
+                        }
+                        .accessibilityLabel("Settings")
+                        SharePlateLogoView()
                     }
-                    .accessibilityLabel("Settings")
                 }
             }
             .sheet(isPresented: $showSettings) {
@@ -103,7 +120,7 @@ struct ActivityView: View {
     }
 
     private func activitySection<Content: View>(
-        _ title: String,
+        _ title: LocalizedStringKey,
         systemImage: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
@@ -118,7 +135,7 @@ struct ActivityView: View {
         }
     }
 
-    private func emptyHint(_ text: String) -> some View {
+    private func emptyHint(_ text: LocalizedStringKey) -> some View {
         Text(text)
             .font(AppFont.subheadline)
             .foregroundStyle(Theme.Palette.mutedText)
@@ -131,7 +148,11 @@ struct ActivityView: View {
         Button {
             navigationPath.append(LocationDetail.listing(listing.persistentModelID))
         } label: {
-            ListingCard(listing: listing, distanceText: location.distanceText(to: listing.coordinate))
+            ListingCard(
+                listing: listing,
+                distanceText: location.distanceText(to: listing.coordinate),
+                showsBookingCode: true
+            )
         }
         .buttonStyle(PlainRowButtonStyle())
     }
@@ -156,6 +177,21 @@ struct ActivityView: View {
 
     private var myAvailableListings: [FoodListing] {
         myListings.filter { $0.effectiveStatus == .available }
+    }
+
+    private var historyListings: [FoodListing] {
+        listings
+            .filter { listing in
+                session.matches(listing.postedByDeviceID) || session.matches(listing.claimedByDeviceID)
+            }
+            .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    private func historyRole(for listing: FoodListing) -> String {
+        if session.matches(listing.postedByDeviceID) {
+            return String(localized: "You posted this")
+        }
+        return String(localized: "You reserved this")
     }
 
     private func bookingActivityDate(for listing: FoodListing) -> Date {

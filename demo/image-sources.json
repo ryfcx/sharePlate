@@ -1,0 +1,65 @@
+{
+  "catalog": "Openverse",
+  "images": [
+    {
+      "file": "casual-pizza.jpg",
+      "license": "CC0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "source_page": "https://www.flickr.com/photos/37996646802@N01/36457904755"
+    },
+    {
+      "file": "casual-tomatoes.jpg",
+      "license": "CC0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "source_page": "https://www.flickr.com/photos/134468672@N06/20281911391"
+    },
+    {
+      "file": "casual-oatmeal.jpg",
+      "license": "Public Domain Mark",
+      "license_url": "https://creativecommons.org/publicdomain/mark/1.0/",
+      "source_page": "https://www.flickr.com/photos/57873306@N00/6999405404"
+    },
+    {
+      "file": "casual-cookies.jpg",
+      "license": "CC0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "source_page": "https://www.flickr.com/photos/135396164@N05/32490802751"
+    },
+    {
+      "file": "casual-noodles.jpg",
+      "license": "CC0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "source_page": "https://www.flickr.com/photos/37996646802@N01/2859035761"
+    },
+    {
+      "file": "casual-salad.jpg",
+      "license": "CC0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "source_page": "https://www.flickr.com/photos/35034347371@N01/25390833"
+    },
+    {
+      "file": "casual-grilled-cheese.jpg",
+      "license": "CC0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "source_page": "https://www.flickr.com/photos/37996646802@N01/3799884056"
+    },
+    {
+      "file": "casual-food-plate.jpg",
+      "license": "CC0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "source_page": "https://www.flickr.com/photos/35034347371@N01/27708025791"
+    },
+    {
+      "file": "casual-dry-goods.jpg",
+      "license": "CC0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "source_page": "https://www.flickr.com/photos/11569642@N00/22305748915"
+    },
+    {
+      "file": "casual-egg-dish.jpg",
+      "license": "CC0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "source_page": "https://www.flickr.com/photos/35034347371@N01/44514349"
+    }
+  ]
+}

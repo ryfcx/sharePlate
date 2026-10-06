@@ -2,91 +2,130 @@
 //  TranslatableText.swift
 //  sharePlate
 //
-//  On-device translation (Apple's Translation framework) for free-text a
-//  user typed themselves — listing titles, pickup/drop-off notes. These
-//  can't go through the String Catalog since the app doesn't know their
-//  content in advance. Translation is opt-in per piece of text (a tap),
-//  never automatic — the app shouldn't silently rewrite what someone wrote.
+//  On-device translation for pantry About text, hours, and neighbor-written notes.
+//  The system translation sheet is used so this works in English, Spanish,
+//  or the device language. It does not depend on the in-app language being Spanish.
 //
 
 import SwiftUI
 import Translation
 
 struct TranslatableText: View {
+    enum Style {
+        /// Text with a Translate / Show original button underneath.
+        case labeled
+        /// Text with a small translate icon beside it, for tight rows.
+        case icon
+    }
+
     let text: String
     var font: Font = AppFont.body
     var color: Color = Theme.Palette.primaryText
+    var lineLimit: Int? = nil
+    var style: Style = .labeled
 
-    @AppStorage(AppLanguage.storageKey) private var appLanguageRaw = AppLanguage.system.rawValue
     @State private var translatedText: String?
-    @State private var isTranslating = false
-    @State private var translationFailed = false
-    @State private var configuration: TranslationSession.Configuration?
+    @State private var showTranslation = false
 
-    /// Only offer translation when the app's language is explicitly set
-    /// (not "System") — otherwise "translate to what?" is ambiguous.
-    private var targetLanguage: AppLanguage? {
-        let language = AppLanguage(rawValue: appLanguageRaw) ?? .system
-        return language == .system ? nil : language
+    private var shownText: String { translatedText ?? text }
+
+    private var isShowingTranslation: Bool {
+        guard let translatedText, !translatedText.isEmpty else { return false }
+        return translatedText != text
+    }
+
+    /// Skip codes, phone numbers, and placeholders that have no words.
+    private var canTranslate: Bool {
+        text.unicodeScalars.contains { CharacterSet.letters.contains($0) }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(translatedText ?? text)
-                .font(font)
-                .foregroundStyle(color)
-
-            if let targetLanguage {
-                translateControl(target: targetLanguage)
+        Group {
+            switch style {
+            case .labeled:
+                labeledBody
+            case .icon:
+                iconBody
             }
         }
-        .translationTask(configuration) { session in
-            isTranslating = true
-            translationFailed = false
-            defer { isTranslating = false }
-            do {
-                let response = try await session.translate(text)
-                translatedText = response.targetText
-            } catch {
-                translationFailed = true
-            }
-            configuration = nil
+        .onChange(of: text) {
+            translatedText = nil
+            showTranslation = false
+        }
+        .translationPresentation(isPresented: $showTranslation, text: text) { translated in
+            let trimmed = translated.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return }
+            translatedText = trimmed
         }
     }
 
-    @ViewBuilder
-    private func translateControl(target: AppLanguage) -> some View {
-        if isTranslating {
-            HStack(spacing: 4) {
-                ProgressView().controlSize(.mini)
-                Text("Translating…")
-            }
-            .font(AppFont.caption)
-            .foregroundStyle(Theme.Palette.mutedText)
-        } else if let translatedText, !translatedText.isEmpty {
-            Button {
-                self.translatedText = nil
-            } label: {
-                Label("Show original", systemImage: "arrow.uturn.backward")
-            }
-            .font(AppFont.caption)
-            .buttonStyle(.plain)
-            .foregroundStyle(Theme.Palette.primaryGreen)
-        } else {
-            Button {
-                configuration = TranslationSession.Configuration(target: target.locale.language)
-            } label: {
-                Label("Translate", systemImage: "translate")
-            }
-            .font(AppFont.caption)
-            .buttonStyle(.plain)
-            .foregroundStyle(Theme.Palette.primaryGreen)
+    private var labeledBody: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(shownText)
+                .font(font)
+                .foregroundStyle(color)
+                .lineLimit(lineLimit)
+                .fixedSize(horizontal: false, vertical: lineLimit == nil)
 
-            if translationFailed {
-                Text("Couldn't translate")
-                    .font(AppFont.caption)
-                    .foregroundStyle(Theme.Palette.mutedText)
+            if canTranslate {
+                labeledControl
             }
         }
+    }
+
+    private var iconBody: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Text(shownText)
+                .font(font)
+                .foregroundStyle(color)
+                .lineLimit(lineLimit)
+                .frame(maxWidth: lineLimit == nil ? nil : .infinity, alignment: .leading)
+
+            if canTranslate {
+                iconControl
+            }
+        }
+    }
+
+    private var labeledControl: some View {
+        Button {
+            if isShowingTranslation {
+                translatedText = nil
+            } else {
+                showTranslation = true
+            }
+        } label: {
+            Label(
+                isShowingTranslation ? "Show original" : "Translate",
+                systemImage: isShowingTranslation ? "arrow.uturn.backward" : "translate"
+            )
+        }
+        .font(AppFont.caption)
+        .buttonStyle(.plain)
+        .foregroundStyle(Theme.Palette.primaryGreen)
+    }
+
+    private var iconControl: some View {
+        Image(systemName: isShowingTranslation ? "arrow.uturn.backward" : "translate")
+            .font(AppFont.caption)
+            .foregroundStyle(Theme.Palette.primaryGreen)
+            .padding(4)
+            .contentShape(Rectangle())
+            .highPriorityGesture(TapGesture().onEnded {
+                if isShowingTranslation {
+                    translatedText = nil
+                } else {
+                    showTranslation = true
+                }
+            })
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(Text(isShowingTranslation ? "Show original" : "Translate"))
+            .accessibilityAction {
+                if isShowingTranslation {
+                    translatedText = nil
+                } else {
+                    showTranslation = true
+                }
+            }
     }
 }

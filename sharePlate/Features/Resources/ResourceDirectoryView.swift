@@ -69,10 +69,13 @@ struct ResourceDirectoryView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Toggle("Sort by distance", isOn: $sortByDistance)
-                    } label: {
-                        Image(systemName: "arrow.up.arrow.down")
+                    HStack(spacing: Theme.Spacing.md) {
+                        Menu {
+                            Toggle("Sort by distance", isOn: $sortByDistance)
+                        } label: {
+                            Image(systemName: "arrow.up.arrow.down")
+                        }
+                        SharePlateLogoView()
                     }
                 }
             }

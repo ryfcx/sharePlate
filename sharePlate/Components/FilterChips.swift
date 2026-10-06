@@ -19,7 +19,7 @@ struct FilterChip: View {
                     Image(systemName: systemImage)
                         .font(.system(size: 11, weight: .semibold))
                 }
-                Text(title)
+                Text(LocalizedStringKey(title))
             }
             .font(AppFont.footnote)
             .padding(.horizontal, 10)

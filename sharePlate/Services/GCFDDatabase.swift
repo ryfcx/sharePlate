@@ -261,7 +261,7 @@ enum GCFDDatabase {
 
     private static func hoursText(from serviceHours: [ServiceHours], programs: String) -> String {
         guard !serviceHours.isEmpty else {
-            return programs.isEmpty ? "Call for hours" : programs
+            return programs.isEmpty ? String(localized: "Call for hours") : programs
         }
 
         var sections: [String] = []
@@ -269,7 +269,7 @@ enum GCFDDatabase {
             let lines = service.displayLines()
             if lines.isEmpty {
                 if service.callForHours {
-                    sections.append("\(service.serviceName): Call for hours")
+                    sections.append(String(localized: "\(service.serviceName): Call for hours"))
                 }
                 continue
             }
@@ -281,7 +281,7 @@ enum GCFDDatabase {
         }
 
         let joined = sections.joined(separator: " · ")
-        return joined.isEmpty ? (programs.isEmpty ? "Call for hours" : programs) : joined
+        return joined.isEmpty ? (programs.isEmpty ? String(localized: "Call for hours") : programs) : joined
     }
 
     private static func summaryText(about: String, programs: String) -> String {
@@ -292,7 +292,7 @@ enum GCFDDatabase {
         if !programs.isEmpty {
             return programs
         }
-        return "Food assistance location."
+        return String(localized: "Food assistance location.")
     }
 
     /// AccessFood sometimes returns `about_us` as an HTML fragment. Convert it

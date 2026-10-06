@@ -59,13 +59,15 @@ struct ListingPhotoView: View {
                 .frame(width: thumbnailSize, height: thumbnailSize)
                 .clipped()
         } else if let height {
-            image
-                .resizable()
-                .scaledToFill()
-                .frame(maxWidth: .infinity)
-                .frame(height: height)
-                .clipped()
-                .boxBorder()
+            GeometryReader { proxy in
+                image
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: proxy.size.width, height: height)
+                    .clipped()
+            }
+            .frame(height: height)
+            .boxBorder()
         } else {
             image
                 .resizable()

@@ -41,3 +41,7 @@ __pycache__/
 /gcfd_food.db
 /sharePlateLogo.png
 /ChatGPT Image*.png
+
+# Local demo listing inputs and cleanup state
+/demo/images/
+/demo/.seed-state.json

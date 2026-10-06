@@ -12,28 +12,68 @@ struct PackageCountPicker: View {
     let range: ClosedRange<Int>
     var label: String = "packages"
 
+    /// A button per count only fits a short row. Larger stocks use a stepper.
+    private var usesStepper: Bool { range.count > 8 }
+
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            HStack(spacing: Theme.Spacing.sm) {
-                ForEach(Array(range), id: \.self) { count in
-                    Button {
-                        selection = count
-                    } label: {
-                        Text("\(count)")
-                            .font(AppFont.headline.monospacedDigit())
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                            .background(selection == count ? Theme.Palette.primaryGreen : Theme.Palette.cardBackground)
-                            .foregroundStyle(selection == count ? Color.white : Theme.Palette.primaryText)
-                            .boxBorder(selection == count ? Theme.Palette.primaryGreen.opacity(0.5) : Theme.Palette.hairline)
-                    }
-                    .buttonStyle(.plain)
-                }
+            if usesStepper {
+                stepper
+            } else {
+                buttonRow
             }
 
             Text("\(selection) \(selection == 1 ? "package" : "packages") selected")
                 .font(AppFont.caption)
                 .foregroundStyle(Theme.Palette.mutedText)
         }
+    }
+
+    private var buttonRow: some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            ForEach(Array(range), id: \.self) { count in
+                Button {
+                    selection = count
+                } label: {
+                    Text("\(count)")
+                        .font(AppFont.headline.monospacedDigit())
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(selection == count ? Theme.Palette.primaryGreen : Theme.Palette.cardBackground)
+                        .foregroundStyle(selection == count ? Color.white : Theme.Palette.primaryText)
+                        .boxBorder(selection == count ? Theme.Palette.primaryGreen.opacity(0.5) : Theme.Palette.hairline)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var stepper: some View {
+        HStack(spacing: Theme.Spacing.md) {
+            stepButton(systemImage: "minus", enabled: selection > range.lowerBound) {
+                selection = max(range.lowerBound, selection - 1)
+            }
+            Text("\(selection)")
+                .font(AppFont.title2.monospacedDigit())
+                .foregroundStyle(Theme.Palette.primaryText)
+                .frame(maxWidth: .infinity)
+            stepButton(systemImage: "plus", enabled: selection < range.upperBound) {
+                selection = min(range.upperBound, selection + 1)
+            }
+        }
+        .padding(Theme.Spacing.sm)
+    }
+
+    private func stepButton(systemImage: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(AppFont.headline)
+                .frame(width: 44, height: 44)
+                .background(Theme.Palette.cardBackground)
+                .foregroundStyle(enabled ? Theme.Palette.primaryGreen : Theme.Palette.mutedText)
+                .boxBorder()
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
     }
 }
 
@@ -86,7 +126,7 @@ struct PackageReserveSheet: View {
         self.listing = listing
         self.onReserve = onReserve
         let maxAllowed = min(listing.effectiveMaxPerBooking, listing.effectivePackagesRemaining)
-        _selectedCount = State(initialValue: max(1, maxAllowed))
+        _selectedCount = State(initialValue: maxAllowed > 8 ? 1 : max(1, maxAllowed))
     }
 
     private var maxAllowed: Int {

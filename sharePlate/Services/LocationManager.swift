@@ -110,7 +110,7 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         guard let meters = distance(to: coordinate) else { return nil }
         let miles = meters / 1609.344
         if miles < 0.1 {
-            return "nearby"
+            return String(localized: "nearby")
         }
         return String(format: "%.1f mi", miles)
     }
