@@ -1,6 +1,6 @@
 # SharePlate Neighbors
 
-![SharePlate logo](sharePlate/Assets.xcassets/SharePlateLogo.imageset/SharePlateLogo.png)
+<img src="sharePlate/Assets.xcassets/SharePlateLogo.imageset/SharePlateLogo.png" width="120" alt="SharePlate logo" />
 
 Chicago food-sharing app. Find free food nearby and share extra meals instead of throwing them away.
 
