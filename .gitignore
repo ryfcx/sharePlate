@@ -13,10 +13,25 @@ xcuserdata/
 
 # mac stuff
 .DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
 
 # python stuff
 __pycache__/
 *.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+dist/
+*.orig
+*.rej
+*~
 
 # keys and secrets
 .env
@@ -29,11 +44,20 @@ __pycache__/
 *.mobileprovision
 
 # pods stuff
+Pods/
+
+# cursor and editors
+.cursor/
+.vscode/
+.idea/
+*.code-workspace
 
 # local notes
 /HANDOFF.md
 /SESSION_SUMMARY.md
 /.claude/
+/.agent/
+/scratch/
 
 # local art and extra downloads
 /0xProto_2_502/
@@ -49,3 +73,9 @@ __pycache__/
 # demo stuff
 /demo/images/
 /demo/.seed-state.json
+
+# logs and temp
+*.log
+*.tmp
+*.temp
+.DS_Store
