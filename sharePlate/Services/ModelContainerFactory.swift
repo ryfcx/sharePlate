@@ -1,9 +1,10 @@
 //
-//  ModelContainerFactory.swift
-//  sharePlate
+// modelcontainerfactory.swift
+// shareplate
 //
-//  Creates the SwiftData store. If the on-disk schema is incompatible (common
-//  during development when models change), wipes the local store and retries.
+// creates the swiftdata store
+// if on disk schema is incompatible, wipes store and retries
+// common during development when models change
 //
 
 import Foundation
@@ -24,7 +25,7 @@ enum ModelContainerFactory {
         do {
             return try ModelContainer(for: schema, configurations: [config])
         } catch {
-            // Prototype app: drop incompatible local data and recreate.
+            // prototype app, drops bad local data and recreates
             wipeStore(at: storeURL)
             wipeLegacyStores()
             return try ModelContainer(for: schema, configurations: [config])
@@ -44,7 +45,7 @@ enum ModelContainerFactory {
         }
     }
 
-    /// Removes the default store name used before we pinned an explicit URL.
+    // removes default store name used before pinned url
     private static func wipeLegacyStores() {
         guard let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
         wipeStore(at: support.appending(path: "default.store"))

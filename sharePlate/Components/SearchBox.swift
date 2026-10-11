@@ -1,6 +1,6 @@
 //
-//  SearchBox.swift
-//  sharePlate
+//  searchbox.swift
+//  shareplate
 //
 
 import SwiftUI

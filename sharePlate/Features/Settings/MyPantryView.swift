@@ -1,10 +1,9 @@
 //
-//  MyPantryView.swift
-//  sharePlate
+// mypantryview.swift
+// shareplate
 //
-//  Dashboard for a claimed pantry: toggle temporarily-closed, post surplus
-//  food under the pantry's name, see what's currently posted, or release
-//  the claim back to the read-only directory.
+// dashboard for a claimed pantry
+// toggle closed post surplus or release claim
 //
 
 import SwiftUI

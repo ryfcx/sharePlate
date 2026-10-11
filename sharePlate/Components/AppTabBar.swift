@@ -1,8 +1,8 @@
 //
-//  AppTabBar.swift
-//  sharePlate
+//  apptabbar.swift
+//  shareplate
 //
-//  Custom bottom navigation — flat, fixed to the screen edge, no system tab bar.
+//  custom bottom navigation fixed to the screen edge
 //
 
 import SwiftUI

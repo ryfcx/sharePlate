@@ -1,6 +1,5 @@
-// Supabase Edge Function — sends APNs alerts for handoff events.
-// Deploy: supabase functions deploy send-handoff-push --no-verify-jwt
-// See supabase/README_PUSH.md
+// sends pickup alerts for handoffs
+// deploy with supabase functions deploy
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { SignJWT, importPKCS8 } from "https://deno.land/x/jose@v5.9.6/index.ts";

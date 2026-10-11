@@ -1,11 +1,13 @@
 //
-//  ListingCard.swift
-//  sharePlate
+//  listingcard.swift
+//  shareplate
 //
 
 import SwiftUI
 
 struct ListingCard: View {
+    @Environment(SessionContext.self) private var session
+
     let listing: FoodListing
     var distanceText: String?
     var showsBookingCode = true
@@ -20,7 +22,7 @@ struct ListingCard: View {
                         .font(AppFont.headline)
                         .foregroundStyle(Theme.Palette.primaryText)
                         .lineLimit(1)
-                    if showsBookingCode, listing.revealsBookingCode {
+                    if showsBookingCode, listing.revealsBookingCode || session.matches(listing.postedByDeviceID) {
                         Text(listing.bookingCode)
                             .font(AppFont.captionBold)
                             .monospacedDigit()

@@ -1,7 +1,4 @@
-//
-//  SupabaseListingService.swift
-//  sharePlate
-//
+// supabase listing service
 
 import Foundation
 import Supabase
@@ -46,10 +43,8 @@ enum SupabaseListingService {
     }
 
     static func update(id: UUID, patch: RemoteListingUpdate) async throws {
-        // `.select()` forces PostgREST to return the rows it actually updated.
-        // Without it, an update blocked by RLS (e.g. someone else already claimed
-        // this listing) still returns 200 with zero rows changed — the caller
-        // would otherwise treat that as success.
+// ask for rows back so we know the save worked
+// without this a blocked save would still look fine
         let rows: [RemoteListing] = try await client
             .from(table)
             .update(patch)
@@ -107,8 +102,7 @@ enum SupabaseListingService {
             .execute()
     }
 
-    /// Reservation identity is stored separately from the public listing row;
-    /// RLS permits this read only for the provider and current reserver.
+    // who booked it, only makers and bookers can see
     static func fetchReserverDisplayName(listingID: UUID) async -> String? {
         struct ReservationIdentity: Decodable {
             let reserverDisplayName: String
@@ -189,7 +183,7 @@ enum SupabaseListingService {
             .execute()
     }
 
-    /// Reopens a listing when packages remain after a partial handoff.
+    // reopens a post when packs are left
     static func reopenAfterPartialHandoff(
         id: UUID,
         details: String,

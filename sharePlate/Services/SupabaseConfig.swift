@@ -1,8 +1,8 @@
 //
-//  SupabaseConfig.swift
-//  sharePlate
+// supabaseconfig.swift
+// shareplate
 //
-//  Publishable key is safe in the client when RLS is enabled on all tables.
+// publishable key is safe in client when rls is on for all tables
 //
 
 import Foundation

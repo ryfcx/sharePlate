@@ -1,8 +1,8 @@
 //
-//  DirectionsHelper.swift
-//  sharePlate
+// directionshelper.swift
+// shareplate
 //
-//  Directions can open in either Google Maps or Apple Maps.
+// directions can open in google maps or apple maps
 //
 
 import Foundation
@@ -11,7 +11,7 @@ import MapKit
 import CoreLocation
 
 enum DirectionsHelper {
-    // MARK: - Google Maps
+    // google maps
 
     static func googleMapsURL(coordinate: CLLocationCoordinate2D, address: String) -> URL? {
         var components = URLComponents(string: "https://www.google.com/maps/dir/")
@@ -23,13 +23,13 @@ enum DirectionsHelper {
         return components?.url
     }
 
-    /// Opens the Google Maps app via universal link when installed, else the web.
+    // opens google maps app when installed, else the web
     static func openGoogleMaps(coordinate: CLLocationCoordinate2D, address: String) {
         guard let url = googleMapsURL(coordinate: coordinate, address: address) else { return }
         UIApplication.shared.open(url)
     }
 
-    // MARK: - Apple Maps
+    // apple maps
 
     static func openAppleMaps(coordinate: CLLocationCoordinate2D, name: String) {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)

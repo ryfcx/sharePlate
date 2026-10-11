@@ -1,14 +1,14 @@
 //
-//  Theme.swift
-//  sharePlate
+//  theme.swift
+//  shareplate
 //
-//  Flat, boxy design tokens — simple borders, square corners, no shadows.
+//  flat design tokens with simple borders and square corners
 //
 
 import SwiftUI
 import UIKit
 
-// MARK: - Color from hex
+// color from hex
 
 extension Color {
     init(hex: UInt, alpha: Double = 1) {
@@ -22,7 +22,7 @@ extension Color {
     }
 }
 
-// MARK: - Palette
+// palette
 
 enum Theme {
     enum Palette {
@@ -47,7 +47,7 @@ enum Theme {
         static let primaryText = adaptive(light: 0x1F2937, dark: 0xF5F1E7)
         static let mutedText = adaptive(light: 0x6B7280, dark: 0xAEB8AF)
 
-        // Map pin / category colors
+        // map pin and category colors
         static let pantryGreen = Color(hex: 0x2E7D32)
         static let availableOrange = Color(hex: 0xF4A261)
         static let mealBlue = Color(hex: 0x2F80ED)
@@ -56,12 +56,12 @@ enum Theme {
         static let mobileTeal = Color(hex: 0x14919B)
         static let limitedYellow = Color(hex: 0xD98A0B)
 
-        // Borders / fills
+        // borders and fills
         static let hairline = adaptive(light: 0xCCCCCC, dark: 0x445048)
         static let softFill = adaptive(light: 0xEFEBDD, dark: 0x263029)
     }
 
-    /// Subtle corners — flat layout, not fully square.
+    // soft corners for a flat layout
     enum Radius {
         static let card: CGFloat = 8
         static let control: CGFloat = 6
@@ -77,7 +77,7 @@ enum Theme {
     }
 }
 
-// MARK: - Typography (Manrope for headings/UI, Inter for body)
+// typography
 
 enum AppFont {
     private enum Manrope: String {

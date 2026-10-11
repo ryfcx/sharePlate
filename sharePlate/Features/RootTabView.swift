@@ -1,6 +1,6 @@
 //
-//  RootTabView.swift
-//  sharePlate
+// roottabview.swift
+// shareplate
 //
 
 import SwiftUI
@@ -68,9 +68,9 @@ struct RootTabView: View {
             await PushNotificationService.shared.uploadTokenIfNeeded()
             location.bootstrapIfNeeded()
 
-            // Silent background upgrade: if a fresher GCFD dataset is available,
-            // pull it in and re-seed. Never blocks the UI above — users are
-            // already browsing the bundled data by the time this resolves.
+            // silent upgrade pulls fresh data in background
+            // never blocks the ui while browsing bundled data
+            // reseeds after refresh resolves
             if await GCFDDatabaseSyncService.refreshIfNeeded() {
                 store.seedIfNeeded()
             }

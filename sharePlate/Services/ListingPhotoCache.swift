@@ -1,8 +1,8 @@
 //
-//  ListingPhotoCache.swift
-//  sharePlate
+// listingphotocache.swift
+// shareplate
 //
-//  In-memory cache so listing photos decode once and load instantly in lists.
+// in memory cache so photos decode once and load fast in lists
 //
 
 import UIKit

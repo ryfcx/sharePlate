@@ -1,6 +1,6 @@
 //
-//  ResourceDetailView.swift
-//  sharePlate
+// resourcedetailview.swift
+// shareplate
 //
 
 import SwiftUI
@@ -201,7 +201,7 @@ struct ResourceDetailView: View {
     }
 }
 
-/// One Translate button for every service name and hour line at a pantry.
+// one translate button for pantry hours
 private struct ServiceHoursBlock: View {
     let services: [ServiceHours]
 
@@ -316,7 +316,7 @@ private struct ServiceHoursBlock: View {
         combinedText.unicodeScalars.contains { CharacterSet.letters.contains($0) }
     }
 
-    /// Puts a single sheet result back on each hour line when the line count matches.
+    // puts translation back on each hour line
     private static func mappedLines(pieces: [Piece], translated: String) -> [String: String]? {
         let parts = translated.components(separatedBy: "\n")
         guard parts.count == pieces.count else { return nil }

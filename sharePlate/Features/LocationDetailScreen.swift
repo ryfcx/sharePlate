@@ -1,6 +1,6 @@
 //
-//  LocationDetailScreen.swift
-//  sharePlate
+// locationdetailscreen.swift
+// shareplate
 //
 
 import SwiftUI
@@ -35,6 +35,11 @@ struct LocationDetailScreen: View {
                 ResourceDetailView(resource: store)
             } else {
                 ListingHandoffGate(listing: listing)
+                    .onChange(of: listing.statusRaw) { _, _ in
+                        if listing.effectiveStatus == .pickedUp {
+                            dismissSoon()
+                        }
+                    }
             }
         } else {
             unavailable("This listing is no longer available.")

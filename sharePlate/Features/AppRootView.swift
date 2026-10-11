@@ -1,9 +1,9 @@
 //
-//  AppRootView.swift
-//  sharePlate
+// approotview.swift
+// shareplate
 //
-//  No login gate — shows the branded splash while the silent anonymous
-//  auth session (needed for RLS) finishes, rather than requiring sign-in.
+// no login gate shows splash while auth finishes
+// silent anonymous session is needed for access
 //
 
 import SwiftUI

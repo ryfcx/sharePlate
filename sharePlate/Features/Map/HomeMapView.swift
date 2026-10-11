@@ -1,8 +1,8 @@
 //
-//  HomeMapView.swift
-//  sharePlate
+// homemapview.swift
+// shareplate
 //
-//  Compact header, map, and a simple tap-to-collapse Nearby panel.
+// compact header map and nearby panel
 //
 
 import SwiftUI
@@ -44,14 +44,14 @@ struct HomeMapView: View {
 
     private let collapsedBarHeight: CGFloat = 56
     private let nearRadiusMeters: CLLocationDistance = 8046
-    /// Cap pins/list rows in near-me mode to keep scrolling smooth.
+    // cap pins and rows to keep scrolling smooth
     private let nearbyListLimit = 60
     private let mapPinLimit = 80
 
     @State private var lastOpenedHandoffRemoteID: String?
 
-    /// Only refresh map pins when browse-relevant listing data changes — not
-    /// handoff coordination updates on reserved listings.
+    // only refresh pins when browse data changes
+    // skip handoff updates on reserved listings
     private var browseSettingsToken: String {
         let filters = selectedFilters.map(\.rawValue).sorted().joined(separator: ",")
         return "\(debouncedSearchText)|\(showOpenOnly)|\(showAllLocations)|\(timeWindow.rawValue)|\(filters)"
@@ -136,7 +136,7 @@ struct HomeMapView: View {
                 Task { await NearbyAlertService.refreshPantryOpenSchedule(resources: resources, near: location.mapCenter) }
             }
             .onChange(of: browseSettingsToken) { _, _ in
-                refreshLocationCaches(forceResort: false)
+                refreshLocationCaches(forceResort: false, fitAllRegion: showAllLocations)
             }
             .onChange(of: listingsCatalogToken) { _, _ in
                 refreshLocationCaches(forceResort: false, listingsOnly: true)
@@ -287,7 +287,7 @@ struct HomeMapView: View {
         return from.distance(from: to) <= nearRadiusMeters
     }
 
-    // MARK: - Header
+    // header
 
     private var header: some View {
         VStack(spacing: Theme.Spacing.sm) {
@@ -318,7 +318,14 @@ struct HomeMapView: View {
                     }
                 }
                 FilterChip(title: "All locations", systemImage: "globe", isSelected: showAllLocations) {
-                    withoutAnimation { showAllLocations.toggle() }
+                    showAllLocations.toggle()
+                    let showAll = showAllLocations
+                    Task { @MainActor in
+                        refreshLocationCaches(forceResort: true, fitAllRegion: showAll)
+                        if !showAll {
+                            centerIfNeeded()
+                        }
+                    }
                 }
             }
         }
@@ -360,7 +367,7 @@ struct HomeMapView: View {
         }
     }
 
-    // MARK: - Map
+    // map
 
     private var map: some View {
         Map(position: $cameraPosition) {
@@ -393,7 +400,7 @@ struct HomeMapView: View {
                     } label: {
                         MapPin(
                             symbol: listing.isPermanent ? "cart.fill" : listing.category.symbol,
-                            status: listing.isPermanent ? permanentStoreStatus(listing) : listing.mapOpenStatus
+                            color: listing.typePinColor
                         )
                     }
                     .buttonStyle(.plain)
@@ -408,7 +415,7 @@ struct HomeMapView: View {
         }
     }
 
-    // MARK: - Nearby panel (overlays map — map never resizes on toggle)
+    // nearby panel over map
 
     private var nearbyOverlay: some View {
         VStack(spacing: 0) {
@@ -617,12 +624,12 @@ private struct MapDot: View {
 
 private struct MapPin: View {
     let symbol: String
-    var status: MapPlaceOpenStatus
+    var color: Color
 
     var body: some View {
         ZStack {
             Rectangle()
-                .fill(status.pinColor)
+                .fill(color)
                 .frame(width: 28, height: 28)
                 .overlay(Rectangle().stroke(.white, lineWidth: 2))
             Image(systemName: symbol)

@@ -1,6 +1,6 @@
 //
-//  GroupedFilterBar.swift
-//  sharePlate
+//  groupedfilterbar.swift
+//  shareplate
 //
 
 import SwiftUI

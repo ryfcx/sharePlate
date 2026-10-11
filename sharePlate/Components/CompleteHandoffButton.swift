@@ -1,6 +1,6 @@
 //
-//  CompleteHandoffButton.swift
-//  sharePlate
+//  completehandoffbutton.swift
+//  shareplate
 //
 
 import SwiftUI
@@ -52,6 +52,7 @@ extension FoodListing {
 struct CompleteHandoffButton: View {
     @Environment(LocalDataStore.self) private var store
     @Environment(SessionContext.self) private var session
+    @Environment(\.dismiss) private var dismiss
 
     let listing: FoodListing
 
@@ -104,6 +105,7 @@ struct CompleteHandoffButton: View {
         defer { isWorking = false }
         do {
             try await store.markPickedUp(listing)
+            dismiss()
         } catch {
             errorMessage = handoffErrorMessage(for: error)
         }

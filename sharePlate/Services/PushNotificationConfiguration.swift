@@ -1,19 +1,17 @@
 //
-//  PushNotificationConfiguration.swift
-//  sharePlate
+// pushnotificationconfiguration.swift
+// shareplate
 //
-//  Personal/free Apple Developer teams cannot enable Push Notifications.
-//  Realtime handoff updates work without push. When you enroll in the paid
-//  Apple Developer Program ($99/yr):
-//  1. Set `isEnabled = true` below
-//  2. Add sharePlate.Push.entitlements to CODE_SIGN_ENTITLEMENTS in Xcode
-//  3. Enable Push Notifications capability on the target
-//  See supabase/README_PUSH.md for Supabase setup.
+// free apple teams cannot enable push notifications
+// realtime handoff updates work without push
+// to enable with paid program, flip flag below
+// then add entitlements and capability in xcode
+// see supabase push readme for supabase setup
 //
 
 import Foundation
 
 enum PushNotificationConfiguration {
-    /// Flip to `true` only with a paid Apple Developer account + push entitlements.
+    // flip to true only with paid account plus push entitlements
     static let isEnabled = false
 }

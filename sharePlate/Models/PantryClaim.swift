@@ -1,12 +1,4 @@
-//
-//  PantryClaim.swift
-//  sharePlate
-//
-//  A pantry manager's claim on a GCFD directory entry — lets them post
-//  surplus listings under that pantry's name and mark it temporarily
-//  closed. Synced from the `pantry_claims` Supabase table; see
-//  RemotePantryClaim and SupabasePantryClaimService.
-//
+// pantry claim
 
 import Foundation
 import SwiftData

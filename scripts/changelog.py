@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Add a dated entry to SharePlate's CHANGELOG.md."""
+"""add a dated entry to changelog."""
 
 from __future__ import annotations
 

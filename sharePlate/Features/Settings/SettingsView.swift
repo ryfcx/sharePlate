@@ -1,6 +1,6 @@
 //
-//  SettingsView.swift
-//  sharePlate
+// settingsview.swift
+// shareplate
 //
 
 import SwiftUI

@@ -1,6 +1,6 @@
 //
-//  SupabasePantryClaimService.swift
-//  sharePlate
+// supabasepantryclaimservice.swift
+// shareplate
 //
 
 import Foundation
@@ -18,8 +18,8 @@ enum SupabasePantryClaimService {
             .value
     }
 
-    /// Fails (via the table's primary key on `gcfd_location_id`) if someone
-    /// already claimed this pantry — first come, first served.
+    // fails if someone already claimed this pantry
+    // primary key gives first come first served
     static func claim(_ payload: RemotePantryClaimInsert) async throws -> RemotePantryClaim {
         try await client
             .from(table)

@@ -1,10 +1,10 @@
 //
-//  FontRegistrar.swift
-//  sharePlate
+// fontregistrar.swift
+// shareplate
 //
-//  Registers the bundled Manrope and Inter font files at launch so they are
-//  available to `Font.custom`. If a file is missing, custom fonts gracefully
-//  fall back to the system font.
+// registers bundled manrope and inter fonts at launch
+// so they are available to font custom
+// if a file is missing, falls back to system font
 //
 
 import Foundation

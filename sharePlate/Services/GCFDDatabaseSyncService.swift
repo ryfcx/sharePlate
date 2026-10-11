@@ -1,14 +1,4 @@
-//
-//  GCFDDatabaseSyncService.swift
-//  sharePlate
-//
-//  Checks Supabase Storage for a fresher GCFD food-locations database than
-//  the one bundled with the app (refreshed daily by foodAPI/gcfd_food_sync.py
-//  via GitHub Actions) and downloads it into Application Support so installed
-//  apps pick up new pantry data without an App Store update. Read side is
-//  GCFDDatabase.activeDatabaseURL, which already prefers a downloaded copy.
-//
-
+// gcfd database sync service
 import Foundation
 import SQLite3
 
@@ -23,10 +13,7 @@ enum GCFDDatabaseSyncService {
         return support.appending(path: "gcfd_food.db")
     }
 
-    /// Checks for a newer database and downloads it if one exists. Cheap to
-    /// call on every launch — it's a HEAD request unless the data changed.
-    /// Returns true when a new database was installed and the caller should
-    /// re-run `seedIfNeeded()` to import it.
+    // checks for new data and grabs it if there is any
     static func refreshIfNeeded() async -> Bool {
         guard let remoteETag = await fetchRemoteETag() else { return false }
         let knownETag = UserDefaults.standard.string(forKey: etagDefaultsKey)
@@ -71,9 +58,7 @@ enum GCFDDatabaseSyncService {
         }
     }
 
-    /// Sanity check before swapping in a downloaded file: it must open as
-    /// SQLite and contain at least one active location, so a truncated or
-    /// unexpected response body can never replace a working local database.
+    // quick check so a bad file never swaps in
     private static func isValidSQLiteDatabase(at url: URL) -> Bool {
         var db: OpaquePointer?
         guard sqlite3_open_v2(url.path, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK, let db else {

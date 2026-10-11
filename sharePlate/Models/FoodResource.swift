@@ -1,7 +1,4 @@
-//
-//  FoodResource.swift
-//  sharePlate
-//
+// food resource
 
 import Foundation
 import SwiftData
@@ -17,26 +14,21 @@ final class FoodResource {
     var phone: String?
     var summary: String
     var typeRaw: String
-    /// JSON-encoded `[OpeningInterval]` describing the weekly opening hours.
+    // weekly hours saved as json
     var hoursData: Data?
-    /// JSON-encoded `[ServiceHours]` with per-program schedules and notes.
+    // per program hours saved as json
     var serviceHoursData: Data?
-    /// GCFD's stable id for this location (nil for the curated fallback seed,
-    /// which can't be claimed). Matches `PantryClaim.gcfdLocationID`.
+    // gcfd id for this spot, used for claims
     var gcfdLocationID: Int?
 
-    /// Imported with "Open 24 Hours" so their pantry dots stay green.
-    /// All three are in Lincoln Park.
+    // these spots always show as open
     static let alwaysOpenLocationIDs: Set<Int> = [
-        823,    // Harvest Hub Lincoln Park — 2145 N Halsted St
-        20947,  // Care For Friends — 530 W Fullerton Pkwy
-        820     // St. Teresa of Avila Parish — 1950 N Kenmore Ave
+        823, // harvest hub lincoln park, 2145 n halsted st
+        20947,  // care for friends, 530 w fullerton pkwy
+        820 // st teresa of avila parish, 1950 n kenmore ave
     ]
 
-    // MARK: - Pantry-manager overlay
-    // Denormalized from `PantryClaim` and reapplied after every dataset
-    // resync (which wipes and reinserts this table) — see
-    // `LocalDataStore.reapplyPantryClaimsToResources()`.
+// pantry manager overlay
     var managedByUserID: String?
     var isTemporarilyClosed: Bool = false
     var pantryClosedNote: String?
@@ -86,10 +78,7 @@ final class FoodResource {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
 
-    /// Whether the resource is open at `date`.
-    /// Uses the structured weekly schedule when available, falling back to a
-    /// "24 hours" hint in the free-form `hours` string. Returns nil when the
-    /// schedule is unknown (e.g. "call for hours").
+    // checks if it is open at this time
     func isOpen(at date: Date = Date()) -> Bool? {
         if isTemporarilyClosed { return false }
         if hours.lowercased().contains("24") { return true }
@@ -100,8 +89,7 @@ final class FoodResource {
 
     var isOpenNow: Bool? { isOpen() }
 
-    /// Schedule written on every import, including a later dataset refresh.
-    /// Listed pantries always come back as Open 24 Hours so their status stays green.
+    // schedule saved on every import, stays open
     static func importedSchedule(
         locationID: Int,
         hours: String,

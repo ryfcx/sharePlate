@@ -1,9 +1,9 @@
 //
-//  BookingCodeCard.swift
-//  sharePlate
+//  bookingcodecard.swift
+//  shareplate
 //
-//  Large booking number plus a branded QR so both neighbors can match
-//  the same code at handoff.
+//  big booking number plus branded qr so neighbors match
+//  the same code at handoff
 //
 
 import CoreImage.CIFilterBuiltins

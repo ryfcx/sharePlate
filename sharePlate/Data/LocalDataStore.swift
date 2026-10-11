@@ -1,9 +1,4 @@
-//
-//  LocalDataStore.swift
-//  sharePlate
-//
-//  SwiftData-backed implementation of `DataStore`.
-//
+// local data store
 
 import Foundation
 import CoreLocation
@@ -17,13 +12,7 @@ final class LocalDataStore: DataStore {
     private let context: ModelContext
     private let session: SessionContext
 
-    /// Stores the content signature of the dataset last imported, so existing
-    /// installs re-import whenever the bundled/downloaded database changes
-    /// (see `GCFDDatabase.datasetVersion()`). Adding an optional property is a
-    /// lightweight SwiftData migration that does NOT wipe the store, so we
-    /// reset resources here when the signature changes.
-    /// Bump when import mapping logic changes so existing installs re-import
-    /// even if the bundled database file has not changed.
+    // remembers which data we imported so we refresh when it changes
     private let resourceImportVersion = 7
     private let resourceImportVersionKey = "gcfdResourceImportVersion"
     private let seedSignatureKey = "gcfdDatasetSignature"
@@ -46,14 +35,14 @@ final class LocalDataStore: DataStore {
             return
         }
 
-        // Replace any older dataset (e.g. the original curated seed) wholesale.
+// clear out the old list before adding the new one
         for resource in resources() {
             context.delete(resource)
         }
 
         let gcfd = GCFDDatabase.loadLocations()
         if gcfd.isEmpty {
-            // Fallback to the curated list if the bundled database is unavailable.
+// use the built in list if the database is missing
             for resource in SeedData.resources() {
                 context.insert(resource)
             }
@@ -89,8 +78,7 @@ final class LocalDataStore: DataStore {
         ensurePermanentStoreListings()
     }
 
-    /// Removes pantry listings that were drawn with a cart pin.
-    /// The always-open sites stay on the map as the normal green pantry dots.
+    // drop old shop posts, keep pantry dots
     func ensurePermanentStoreListings() {
         let generated = listings().filter(\.isPermanent)
         guard !generated.isEmpty else { return }
@@ -100,8 +88,7 @@ final class LocalDataStore: DataStore {
         try? context.save()
     }
 
-    /// Drops donor listings that expiration or a catalog refresh has finished.
-    /// Permanent store listings stay even when their deadline is in the past or they have no remote row.
+    // drop old donor posts, keep shop posts
     func pruneListingsAbsentFromCatalog(remoteIDs: Set<String>) {
         for listing in listings() {
             if listing.isPermanent { continue }
@@ -118,8 +105,7 @@ final class LocalDataStore: DataStore {
         try? context.save()
     }
 
-    /// Posts and reservations this device made stay on the Activity history
-    /// after they leave the live catalog.
+    // keep your own posts in history
     private func remembersHistory(_ listing: FoodListing) -> Bool {
         session.matches(listing.postedByDeviceID) || session.matches(listing.claimedByDeviceID)
     }
@@ -132,16 +118,14 @@ final class LocalDataStore: DataStore {
 
         var changed = false
         for listing in listings() {
-            // Only expire unclaimed listings by deadline — active handoffs (claimed
-            // reserved/ready-for-pickup) stay completable past the deadline; see
-            // `FoodListing.hasActiveHandoff`.
+// only expire open posts, booked ones can still finish
             if listing.isPermanent { continue }
             if listing.status == .available, listing.isExpired {
                 listing.status = .expired
                 changed = true
                 continue
             }
-            // Auto-release only abandoned holds (reserved with nobody claimed).
+// free up holds nobody claimed
             if listing.status == .reserved,
                listing.claimedByDeviceID == nil,
                let until = listing.reservedUntil,
@@ -160,7 +144,7 @@ final class LocalDataStore: DataStore {
             applyRemoteListing(remote)
             try? context.save()
         } catch {
-            // Offline — keep local cache.
+            // offline, keep what we have
         }
     }
 
@@ -198,7 +182,7 @@ final class LocalDataStore: DataStore {
             applyRemoteListing(remote)
             try? context.save()
         } catch {
-            // Offline — keep local cache.
+            // offline, keep what we have
         }
     }
 
@@ -254,7 +238,7 @@ final class LocalDataStore: DataStore {
 
             try? context.save()
         } catch {
-            // Offline or auth issue — keep showing the local cache.
+            // offline, keep what we have
         }
     }
 
@@ -281,20 +265,19 @@ final class LocalDataStore: DataStore {
         return (try? context.fetch(descriptor)) ?? []
     }
 
-    // MARK: - Pantry manager
+// pantry manager
 
     func pantryClaims() -> [PantryClaim] {
         (try? context.fetch(FetchDescriptor<PantryClaim>())) ?? []
     }
 
-    /// The pantry this device's identity currently manages, if any.
+    // the pantry this phone manages, if any
     func myPantryClaim() -> PantryClaim? {
         guard let userID = session.currentUserID else { return nil }
         return pantryClaims().first { $0.claimedByUserID.caseInsensitiveCompare(userID) == .orderedSame }
     }
 
-    /// Pulls the latest pantry claims from Supabase and reapplies the
-    /// closed/managed overlay onto the local `FoodResource` cache.
+    // pull fresh claims and update the local spots
     func syncPantryClaims() async {
         guard session.currentUserID != nil else { return }
         guard let remote = try? await SupabasePantryClaimService.fetchAll() else { return }
@@ -329,9 +312,7 @@ final class LocalDataStore: DataStore {
         reapplyPantryClaimsToResources()
     }
 
-    /// Re-derives each `FoodResource`'s claimed/closed overlay from the local
-    /// `PantryClaim` cache. Must run after every `seedIfNeeded()` import
-    /// (which wipes and reinserts resources) and after every claims sync.
+    // repaint the closed and managed flags on spots
     func reapplyPantryClaimsToResources() {
         let claimsByID = Dictionary(uniqueKeysWithValues: pantryClaims().map { ($0.gcfdLocationID, $0) })
         for resource in resources() {
@@ -344,8 +325,7 @@ final class LocalDataStore: DataStore {
         try? context.save()
     }
 
-    /// Re-establishes anonymous auth when launch-time authentication failed
-    /// (for example, because the device was briefly offline).
+    // sign in quietly again if launch login failed
     private func authenticatedIdentity() async throws -> (userID: String, uuid: UUID) {
         do {
             let authSession = try await SupabaseAuthService.ensureSession()
@@ -363,8 +343,7 @@ final class LocalDataStore: DataStore {
         }
     }
 
-    /// Claims an unclaimed pantry from the GCFD directory on behalf of this
-    /// device's identity. Fails if someone already claimed it first.
+    // claim an open pantry for this phone
     func claimPantry(_ resource: FoodResource) async throws {
         guard let locationID = resource.gcfdLocationID else {
             throw PantryClaimError.notClaimable
@@ -387,8 +366,7 @@ final class LocalDataStore: DataStore {
         reapplyPantryClaimsToResources()
     }
 
-    /// Gives up management of a pantry — it returns to the unclaimed,
-    /// read-only directory entry.
+    // give up a pantry so it goes back to public
     func releasePantryClaim(_ claim: PantryClaim) async throws {
         try await SupabasePantryClaimService.release(gcfdLocationID: claim.gcfdLocationID)
         context.delete(claim)
@@ -396,8 +374,7 @@ final class LocalDataStore: DataStore {
         reapplyPantryClaimsToResources()
     }
 
-    /// Toggles whether a claimed pantry shows as temporarily closed on the
-    /// map, with an optional note (e.g. "Out of food until Thursday").
+    // mark your pantry open or closed with a note
     func setPantryClosed(_ claim: PantryClaim, isClosed: Bool, note: String?) async throws {
         let trimmedNote = note?.trimmingCharacters(in: .whitespacesAndNewlines)
         try await SupabasePantryClaimService.updateStatus(
@@ -413,7 +390,7 @@ final class LocalDataStore: DataStore {
         reapplyPantryClaimsToResources()
     }
 
-    /// Active (unexpired, unpicked-up) surplus listings posted by a claimed pantry.
+    // live surplus posts from your pantry
     func pantryListings(for claim: PantryClaim) -> [FoodListing] {
         listings().filter {
             $0.pantryGCFDLocationID == claim.gcfdLocationID && !$0.isPermanent && $0.effectiveStatus != .pickedUp
@@ -728,8 +705,7 @@ final class LocalDataStore: DataStore {
             }
 
             do {
-                // The server records the completed consumer and atomically
-                // reopens only when its authoritative remaining count is > 0.
+// server reopens only if packs are left
                 try await SupabaseListingService.markHandoffComplete(
                     id: id,
                     pickupDeadline: listing.pickupDeadline
@@ -798,9 +774,9 @@ final class LocalDataStore: DataStore {
         try? context.save()
     }
 
-    // MARK: - Helpers
+// helpers
 
-    /// Reopens a listing and notifies anyone on its waitlist.
+    // reopen a post and tell the waitlist
     private func reopen(_ listing: FoodListing) {
         listing.status = .available
         listing.claimedByDeviceID = nil
@@ -868,9 +844,7 @@ final class LocalDataStore: DataStore {
         listing.photoURL = remote.photoURL
         listing.syncPackageFieldsFromDetails()
 
-        // The database RPCs make reservation transitions atomic, so the remote
-        // row is authoritative. In particular, a partial completion changes
-        // reserved → available and must not be mistaken for a stale update.
+// online row wins for bookings
         listing.contactInstructions = remote.contactInstructions
         listing.statusRaw = remote.status
         listing.claimedByDeviceID = remote.claimedBy?.uuidString
@@ -902,7 +876,7 @@ final class LocalDataStore: DataStore {
         }
     }
 
-    // MARK: - Realtime helpers
+// realtime helpers
 
     func activeHandoffRemoteIDs(for identity: String) -> [UUID] {
         listings().compactMap { listing in
@@ -914,7 +888,7 @@ final class LocalDataStore: DataStore {
             if isClaimer && (status == .reserved || status == .readyForPickup) {
                 return uuid
             }
-            // Provider watches open listings so reservation + instruction requests arrive instantly.
+// makers watch open posts so bookings ping fast
             if isOwner && (status == .available || status == .reserved || status == .readyForPickup) {
                 return uuid
             }
@@ -931,9 +905,7 @@ final class LocalDataStore: DataStore {
             return
         }
 
-        // A reserved listing becoming available while this device was the
-        // claimer means that allocation was completed by the provider. Hide it
-        // immediately here; the completion-history sync makes this persistent.
+// hide it if the maker finished your share
         if status == .available,
            remote.claimedBy == nil,
            let existing = listing(withRemoteID: remoteID),
@@ -968,9 +940,7 @@ final class LocalDataStore: DataStore {
         try? context.save()
     }
 
-    /// Hide a completed listing without deleting a model that an active
-    /// navigation destination may still be observing. Normal sync removes the
-    /// tombstone after the detail screen has had time to dismiss.
+    // hide finished posts softly so open screens do not break
     private func markListingCompletedLocally(remoteID: String) {
         guard let listing = listing(withRemoteID: remoteID) else { return }
         listing.status = .pickedUp

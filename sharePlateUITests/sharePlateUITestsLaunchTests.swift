@@ -1,9 +1,4 @@
-//
-//  sharePlateUITestsLaunchTests.swift
-//  sharePlateUITests
-//
-//  Created by Ryan Gupta on 5/31/26.
-//
+// launch tests for the app
 
 import XCTest
 
@@ -22,10 +17,7 @@ final class sharePlateUITestsLaunchTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        // Insert steps here to perform after app launch but before taking a screenshot,
-        // such as logging into a test account or navigating somewhere in the app
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
+        // add steps after launch here
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Launch Screen"

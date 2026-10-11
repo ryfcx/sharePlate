@@ -1,6 +1,6 @@
 //
-//  FilterChips.swift
-//  sharePlate
+//  filterchips.swift
+//  shareplate
 //
 
 import SwiftUI

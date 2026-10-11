@@ -1,7 +1,4 @@
-//
-//  FoodListing.swift
-//  sharePlate
-//
+// food listing
 
 import Foundation
 import SwiftData
@@ -13,14 +10,14 @@ final class FoodListing {
     var title: String
     var details: String
     var quantity: String
-    /// Defaults allow SwiftData lightweight migration from older schemas.
+    // keeps old data working when we add fields
     var categoryRaw: String = FoodCategory.mixed.rawValue
     var quantitySizeRaw: String = QuantitySize.feeds3to5.rawValue
     var pickupTypeRaw: String = PickupType.meetOutside.rawValue
-    /// Public, approximate neighborhood/city label (e.g. "Logan Square").
+    // rough neighborhood label for the map
     var area: String = ""
     @Attribute(.externalStorage) var photo: Data?
-    /// Public Supabase Storage URL for the listing photo, when synced.
+    // online photo link once it is synced
     var photoURL: String?
     var pickupAddress: String
     var latitude: Double
@@ -30,33 +27,31 @@ final class FoodListing {
     var contactInstructions: String?
     var statusRaw: String
     var createdAt: Date
-    /// Supabase row id when synced to the cloud.
+    // online row id when synced
     var remoteID: String?
     var postedByDeviceID: String
     var claimedByDeviceID: String?
-    /// While reserved, the hold expires at this time and the listing reopens.
+    // when the hold ends it opens back up
     var reservedUntil: Date?
-    /// Device IDs waiting for the food to reopen.
+    // folks waiting for it to reopen
     var waitlistDeviceIDs: [String] = []
-    /// How far the donor will travel for drop-off listings, in meters.
+    // how far the donor will drive for dropoff
     var dropOffRadiusMeters: Double?
-    /// Total packages listed (0 = legacy quantity-size mapping).
+    // how many packs were listed in total
     var packageCount: Int = 0
-    /// Max packages one person can reserve at once (0 = all remaining).
+    // most packs one person can grab at once
     var maxPackagesPerBooking: Int = 0
-    /// Packages still available (0 = same as packageCount until first reserve).
+    // packs still left to grab
     var packagesRemaining: Int = 0
-    /// Set when this listing was posted by a claimed pantry manager on
-    /// behalf of that pantry, rather than an individual donor.
+    // pantry post, not a neighbor post
     var pantryGCFDLocationID: Int?
-    /// Directory stores that stay in the catalog. Deadline maintenance and
-    /// catalog sync must not remove them.
+    // shop entries that always stay in the list
     var isPermanent: Bool = false
 
-    /// Poster id for app-owned store listings, so they are not treated as a neighbor's post.
+    // shop posts use this id so they look different
     static let permanentPosterID = "shareplate.permanent-store"
 
-    /// Initial hold while the picker confirms; extended to pickup deadline once reserved.
+    // short hold at first, longer once booked
     static let reservationHold: TimeInterval = 30 * 60
 
     init(
@@ -122,7 +117,7 @@ final class FoodListing {
         }
     }
 
-    // MARK: - Typed accessors
+    // typed helpers
 
     var status: ListingStatus {
         get { ListingStatus.from(raw: statusRaw) }
@@ -146,8 +141,7 @@ final class FoodListing {
 
     var isDropOff: Bool { pickupType == .communityFridge }
 
-    /// Short reference code derived from the Supabase row id — shown in
-    /// notifications/receipts so a listing can be referenced without the full UUID.
+    // short code so you can talk about a post easily
     var listingNumber: String {
         guard let remoteID, let uuid = UUID(uuidString: remoteID) else { return "—" }
         return "#" + uuid.uuidString.prefix(6).uppercased()
@@ -171,8 +165,7 @@ final class FoodListing {
         }
         if let total = payload.packageCount {
             packageCount = total
-            // Early package payloads did not include an explicit remaining
-            // count. Treat only those legacy rows as fully stocked.
+// old posts had no left count so treat them as full
             if payload.packagesRemaining == nil, packagesRemaining == 0 {
                 packagesRemaining = total
             }
@@ -205,7 +198,7 @@ final class FoodListing {
         return totalPackages
     }
 
-    /// Packages left to reserve (before an active hold).
+    // packs left before the current hold
     var effectivePackagesRemaining: Int {
         if packageCount > 0 {
             return max(0, min(packagesRemaining, packageCount))
@@ -213,7 +206,7 @@ final class FoodListing {
         return hasActiveHandoff ? 0 : totalPackages
     }
 
-    /// Packages in the current or most recent reservation.
+    // packs in the current booking
     var activeReservedPackageCount: Int {
         if let count = coordination.reservedPackageCount, count > 0 { return count }
         if hasActiveHandoff { return min(effectiveMaxPerBooking, totalPackages) }
@@ -252,7 +245,7 @@ final class FoodListing {
         set { contactInstructions = ReservationCoordinationCodec.encode(newValue) }
     }
 
-    /// Pickup instructions for reserved handoffs — includes listings that set details at post time.
+    // pickup notes for booked handoffs
     var publishedPickupInstructions: ReservationCoordination {
         let decoded = coordination
         if decoded.isReadyForConsumer { return decoded }
@@ -272,7 +265,7 @@ final class FoodListing {
         bookingCode
     }
 
-    /// The handoff code stays hidden until someone reserves the listing.
+    // code stays hidden until someone books
     var revealsBookingCode: Bool {
         guard !isPermanent else { return false }
         switch effectiveStatus {
@@ -283,7 +276,7 @@ final class FoodListing {
         }
     }
 
-    /// Four-character booking id shown on the dashboard, e.g. `1234`.
+    // short booking code shown on the dashboard
     var bookingCode: String {
         if let remoteID {
             let digits = remoteID.filter(\.isNumber)
@@ -298,14 +291,13 @@ final class FoodListing {
         return String(format: "%04d", abs(title.hashValue) % 10_000)
     }
 
-    // MARK: - Location
+    // location helpers
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
 
-    /// Coarsened coordinate (~1 km grid) used for public map display so the
-    /// exact address is not revealed before someone reserves the pickup.
+    // fuzzy map spot so the address stays private
     var publicCoordinate: CLLocationCoordinate2D {
         func blur(_ value: Double) -> Double { (value * 100).rounded() / 100 }
         return CLLocationCoordinate2D(latitude: blur(latitude), longitude: blur(longitude))
@@ -315,10 +307,9 @@ final class FoodListing {
         area.isEmpty ? String(localized: "Nearby") : area
     }
 
-    // MARK: - Timing
+    // timing helpers
 
-    /// A generated Lincoln Park spot. Its deadline is years away, so it stays
-    /// on the map instead of counting down like a neighbor's short-lived meal.
+    // demo spot that stays on the map a long time
     var isStandingLocation: Bool {
         !isPermanent && pickupDeadline.timeIntervalSinceNow > 60 * 60 * 24 * 180
     }
@@ -352,15 +343,15 @@ final class FoodListing {
         String(localized: "Expires \(pickupDeadline.formatted(date: .omitted, time: .shortened))")
     }
 
-    // MARK: - Status
+    // status helpers
 
-    /// Active reserved handoffs stay completable even after the listing deadline passes.
+    // booked handoffs can still finish after the deadline
     var hasActiveHandoff: Bool {
         guard claimedByDeviceID != nil else { return false }
         return status == .reserved || status == .readyForPickup
     }
 
-    /// Display status accounting for elapsed deadline and lapsed reservations.
+    // what to show after checking dates and holds
     var effectiveStatus: ListingStatus {
         if status == .pickedUp { return .pickedUp }
         if hasActiveHandoff { return status }
@@ -370,13 +361,12 @@ final class FoodListing {
         return status
     }
 
-    /// Completing one allocation reopens a multi-package listing for other
-    /// consumers until its remaining stock reaches zero.
+    // multi pack posts reopen until packs run out
     var shouldReopenAfterHandoffCompletion: Bool {
         hasActiveHandoff && packageCount > 0 && effectivePackagesRemaining > 0
     }
 
-    /// Same meanings as the map key and status badges: green open, orange closing soon or reserved, blue ready, red expired.
+    // same colors as the map key and badges
     var indicatorColor: Color {
         switch effectiveStatus {
         case .expired:

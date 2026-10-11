@@ -1,11 +1,4 @@
-//
-//  SeedData.swift
-//  sharePlate
-//
-//  Curated Chicagoland food resources used to seed the local store on first
-//  launch. Coordinates and hours are approximate placeholders intended for a
-//  prototype and can be corrected later.
-//
+// seed data
 
 import Foundation
 

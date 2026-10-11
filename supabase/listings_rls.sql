@@ -1,11 +1,11 @@
--- Listings RLS — run this entire file in Supabase → SQL Editor.
--- Fixes "new row violates row-level security policy" when marking picked up.
+-- listings rls, run whole file in sql editor
+-- fixes new row security error when marking picked up
 
 alter table public.listings enable row level security;
 
--- ---------------------------------------------------------------------------
--- Read / insert / delete
--- ---------------------------------------------------------------------------
+--
+-- read, insert, delete
+--
 
 drop policy if exists "Authenticated read listings" on public.listings;
 create policy "Authenticated read listings"
@@ -22,9 +22,9 @@ create policy "Poster deletes own listings"
   on public.listings for delete to authenticated
   using (posted_by = auth.uid());
 
--- ---------------------------------------------------------------------------
--- Update — split into focused policies (OR'd together)
--- ---------------------------------------------------------------------------
+--
+-- update, split into focused policies
+--
 
 drop policy if exists "Participants update listings" on public.listings;
 drop policy if exists "Anyone can claim available" on public.listings;
@@ -33,7 +33,7 @@ drop policy if exists "Poster updates own listings" on public.listings;
 drop policy if exists "Claimer updates handoff" on public.listings;
 drop policy if exists "Claim available listings" on public.listings;
 
--- Donor can always update their own row (complete, partial reopen, edit).
+-- donor can always update own row
 create policy "Poster updates own listings"
   on public.listings for update to authenticated
   using (posted_by = auth.uid())
@@ -42,9 +42,9 @@ create policy "Poster updates own listings"
 grant select, insert, update, delete on public.listings to authenticated;
 grant select, insert, update, delete on public.listings to service_role;
 
--- ---------------------------------------------------------------------------
--- Private reservation details — visible only to the reserver and provider
--- ---------------------------------------------------------------------------
+--
+-- private reservation details, visible only to reserver and provider
+--
 
 create table if not exists public.listing_reservations (
   listing_id uuid primary key references public.listings(id) on delete cascade,
@@ -74,9 +74,8 @@ create policy "Participants read reservation details"
 grant select on public.listing_reservations to authenticated;
 revoke insert, update, delete on public.listing_reservations from authenticated;
 
--- Records which consumers completed a pickup from a multi-package listing.
--- Consumers can read only their own history; the reserve RPC uses it to prevent
--- the same person from taking another allocation from the same listing.
+-- records which consumers completed a pickup from a multi package listing
+-- consumers read only own history, used to block repeat takes
 create table if not exists public.listing_completions (
   listing_id uuid not null references public.listings(id) on delete cascade,
   consumer_id uuid not null references auth.users(id) on delete cascade,
@@ -94,9 +93,9 @@ create policy "Consumers read own completed listings"
 grant select on public.listing_completions to authenticated;
 revoke insert, update, delete on public.listing_completions from authenticated;
 
--- ---------------------------------------------------------------------------
--- RPC helpers — constrain non-owner writes to handoff-specific columns
--- ---------------------------------------------------------------------------
+--
+-- rpc helpers, limit non owner writes to handoff columns
+--
 
 drop function if exists public.reserve_listing(uuid, text, text, text, timestamptz);
 create or replace function public.reserve_listing(
@@ -142,8 +141,8 @@ begin
       where c.listing_id = p_listing_id
         and c.consumer_id = auth.uid()
     )
-    -- Legacy listings may have no package metadata. When an explicit remaining
-    -- count exists, never let a stale or modified client reserve zero stock.
+    -- old listings may have no package metadata
+    -- never let stale client reserve zero stock when count is known
     and details !~ '(^|;)packages_remaining=0(;|$)';
 
   if not found then
@@ -268,8 +267,8 @@ begin
   );
 
   if v_claimed_by is not null and v_remaining > 0 then
-    -- Finish only this consumer's allocation. Remaining packages immediately
-    -- become available to other consumers under the original provider details.
+    -- finish only this consumer allocation
+    -- leftover packages become available again under provider details
     update public.listings
     set status = 'available',
         claimed_by = null,
@@ -277,7 +276,7 @@ begin
         contact_instructions = v_provider_contact_instructions
     where id = p_listing_id;
   else
-    -- No stock remains, or the provider is closing an unreserved listing.
+    -- no stock left, or provider closing an unreserved listing
     update public.listings
     set status = 'picked_up',
         claimed_by = null,
@@ -291,7 +290,7 @@ begin
 end;
 $$;
 
--- Backward-compatible name used by older app builds.
+-- old name used by older app builds
 create or replace function public.reopen_listing_after_partial_handoff(
   p_listing_id uuid,
   p_details text,
@@ -318,7 +317,7 @@ grant execute on function public.release_listing_reservation(uuid, text, text, t
 grant execute on function public.complete_listing_handoff(uuid) to authenticated;
 grant execute on function public.reopen_listing_after_partial_handoff(uuid, text, text, text, timestamptz) to authenticated;
 
--- Enable Realtime so open consumer apps see new posts immediately.
+-- enable realtime so open apps see new posts right away
 do $$
 begin
   alter publication supabase_realtime add table public.listings;

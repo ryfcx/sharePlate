@@ -1,9 +1,4 @@
-//
-//  sharePlateTests.swift
-//  sharePlateTests
-//
-//  Created by Ryan Gupta on 5/31/26.
-//
+// tests for the app
 
 import SwiftData
 import XCTest
@@ -12,11 +7,11 @@ import XCTest
 final class sharePlateTests: XCTestCase {
 
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+        // setup before each test
     }
 
     override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+        // cleanup after each test
     }
 
     func testAlwaysOpenPantriesStayGreenThroughTheDayAndAfterRefresh() throws {
@@ -122,7 +117,7 @@ final class sharePlateTests: XCTestCase {
         let donorMeal = makeListing(
             title: "Extra pasta",
             category: .preparedMeals,
-            deadline: now.addingTimeInterval(3 * 3600),
+            deadline: now.addingTimeInterval(30 * 60),
             poster: "neighbor",
             remoteID: UUID().uuidString
         )
@@ -187,9 +182,25 @@ final class sharePlateTests: XCTestCase {
         XCTAssertFalse(donorMeal.matches([.storeGrocery]))
         XCTAssertTrue(donorGroceries.matches([.storeGrocery]))
         XCTAssertFalse(permanent.matches([.donorPickup]))
-        XCTAssertTrue(donorMeal.matches([.donorPickup]))
+        XCTAssertFalse(donorMeal.matches([.donorPickup]))
+        XCTAssertTrue(donorMeal.matches([.storeRestaurant]))
         XCTAssertTrue(permanent.matches([.storeGrocery, .donorPickup]))
-        XCTAssertTrue(donorMeal.matches([.storeGrocery, .donorPickup]))
+        XCTAssertFalse(donorMeal.matches([.storeGrocery, .donorPickup]))
+        XCTAssertTrue(donorMeal.matches([.storeRestaurant, .donorPickup]))
+        XCTAssertTrue(donorMeal.matches([.storeRestaurant, .donorDropOff, .pantryFood]))
+        XCTAssertTrue(donorGroceries.matches([.donorPickup, .storeGrocery, .pantryFood]))
+        XCTAssertTrue(donorGroceries.matches([.donorDropOff, .storeGrocery, .pantryFood]))
+        let neighborDonation = makeListing(
+            title: "Extra soup",
+            category: .other,
+            deadline: now.addingTimeInterval(2 * 3600),
+            poster: "neighbor",
+            remoteID: UUID().uuidString
+        )
+        XCTAssertTrue(neighborDonation.isIndividualDonation)
+        XCTAssertTrue(neighborDonation.matches([.donorPickup, .storeGrocery, .storeRestaurant]))
+        XCTAssertFalse(neighborDonation.matches([.storeGrocery, .storeRestaurant]))
+        XCTAssertFalse(neighborDonation.matches([.donorDropOff, .storeGrocery]))
 
         let container = try ModelContainer(
             for: FoodResource.self,
@@ -257,9 +268,9 @@ final class sharePlateTests: XCTestCase {
     }
 
     func testPerformanceExample() throws {
-        // This is an example of a performance test case.
+        // speed test example
         self.measure {
-            // Put the code you want to measure the time of here.
+            // put the timed code here
         }
     }
 

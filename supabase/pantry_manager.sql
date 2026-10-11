@@ -1,20 +1,19 @@
--- Pantry manager role — run this entire file in Supabase → SQL Editor.
--- Lets a device claim a GCFD directory pantry, post surplus listings under
--- it, and mark it temporarily closed. Claims are keyed by the GCFD dataset's
--- own stable location id (see GCFDDatabase.Location.locationID), not a
--- Supabase-generated id, since that's the only identifier that survives the
--- daily GCFD dataset resync.
+-- pantry manager role, run whole file in sql editor
+-- lets a device claim a pantry and post surplus under it
+-- also lets manager mark it temporarily closed
+-- claims use gcfd location id, not a supabase id
+-- that id survives the daily dataset resync
 
--- ---------------------------------------------------------------------------
--- listings: tag a listing as posted on behalf of a claimed pantry
--- ---------------------------------------------------------------------------
+--
+-- listings, tag a listing as posted for a claimed pantry
+--
 
 alter table public.listings
   add column if not exists pantry_gcfd_location_id bigint;
 
--- ---------------------------------------------------------------------------
--- pantry_claims
--- ---------------------------------------------------------------------------
+--
+-- pantry claims
+--
 
 create table if not exists public.pantry_claims (
   gcfd_location_id bigint primary key,
@@ -32,8 +31,8 @@ create policy "Anyone reads pantry claims"
   on public.pantry_claims for select to authenticated
   using (true);
 
--- The primary key on gcfd_location_id already enforces "first come, first
--- served" — a second claim on the same pantry fails with a conflict.
+-- primary key gives first come first served
+-- second claim on same pantry fails with conflict
 drop policy if exists "Claim an unclaimed pantry" on public.pantry_claims;
 create policy "Claim an unclaimed pantry"
   on public.pantry_claims for insert to authenticated
@@ -52,6 +51,5 @@ create policy "Manager releases own pantry claim"
 
 grant select, insert, update, delete on public.pantry_claims to authenticated;
 
--- Optional: Database → Replication → enable Realtime on public.pantry_claims
--- if you want closures/claims to push to other devices instantly instead of
--- on next foreground/launch sync.
+-- optional, enable realtime on pantry claims in dashboard
+-- pushes closures and claims instantly instead of on next sync

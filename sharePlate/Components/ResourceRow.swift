@@ -1,6 +1,6 @@
 //
-//  ResourceRow.swift
-//  sharePlate
+//  resourcerow.swift
+//  shareplate
 //
 
 import SwiftUI

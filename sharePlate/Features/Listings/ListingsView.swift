@@ -1,6 +1,6 @@
 //
-//  ListingsView.swift
-//  sharePlate
+// listingsview.swift
+// shareplate
 //
 
 import SwiftUI

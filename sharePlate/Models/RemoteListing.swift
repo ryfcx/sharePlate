@@ -1,9 +1,4 @@
-//
-//  RemoteListing.swift
-//  sharePlate
-//
-//  Codable mirror of the Supabase `listings` table.
-//
+// remote listing
 
 import Foundation
 

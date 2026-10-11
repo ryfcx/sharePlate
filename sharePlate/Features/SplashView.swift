@@ -1,10 +1,10 @@
 //
-//  SplashView.swift
-//  sharePlate
+// splashview.swift
+// shareplate
 //
-//  Branded startup screen shown after the system launch image while
-//  anonymous auth finishes. Layout matches LaunchScreen.storyboard so
-//  the handoff does not jump.
+// branded startup screen after launch image
+// shows while anonymous auth finishes
+// layout matches launch screen so it does not jump
 //
 
 import SwiftUI

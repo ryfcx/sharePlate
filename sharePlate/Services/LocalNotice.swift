@@ -1,9 +1,9 @@
 //
-//  LocalNotice.swift
-//  sharePlate
+// localnotice.swift
+// shareplate
 //
-//  Opens the matching handoff when the user taps an Apple notification.
-//  Alerts themselves are system notifications, not an in-app banner.
+// opens matching handoff when user taps a notification
+// alerts are system notifications, not an in app banner
 //
 
 import Foundation
@@ -14,7 +14,7 @@ import SwiftUI
 final class LocalNotice {
     static let shared = LocalNotice()
 
-    /// Opens the handoff screen for this listing after a notification tap.
+    // opens handoff screen for this listing after tap
     var pendingHandoffListingRemoteID: String?
 
     private init() {}

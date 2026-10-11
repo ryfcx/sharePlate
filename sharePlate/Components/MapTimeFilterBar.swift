@@ -1,8 +1,8 @@
 //
-//  MapTimeFilterBar.swift
-//  sharePlate
+//  maptimefilterbar.swift
+//  shareplate
 //
-//  Wireframe Screen A — Near / Today / Tomorrow tabs.
+//  near today tomorrow tabs
 //
 
 import SwiftUI

@@ -1,8 +1,8 @@
 //
-//  sharePlateApp.swift
-//  sharePlate
+// shareplateapp.swift
+// shareplate
 //
-//  Created by Ryan Gupta on 5/31/26.
+// created by ryan gupta
 //
 
 import SwiftUI

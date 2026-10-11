@@ -1,13 +1,13 @@
 //
-//  Styles.swift
-//  sharePlate
+//  styles.swift
+//  shareplate
 //
-//  Flat view modifiers and button styles — borders, no shadows, no rounding.
+//  flat view modifiers and button styles
 //
 
 import SwiftUI
 
-// MARK: - Screen background
+// screen background
 
 struct ScreenBackground: ViewModifier {
     func body(content: Content) -> some View {
@@ -25,7 +25,7 @@ extension View {
         overlay(RoundedRectangle(cornerRadius: radius).stroke(color, lineWidth: 1))
     }
 
-    /// Disables implicit SwiftUI animations for snappier tab/filter transitions.
+    // turns off animations for faster tabs and filters
     func withoutAnimation(_ action: () -> Void) {
         var transaction = Transaction()
         transaction.disablesAnimations = true
@@ -39,7 +39,7 @@ func withoutAnimation(_ action: () -> Void) {
     withTransaction(transaction, action)
 }
 
-// MARK: - Card
+// card
 
 struct CardModifier: ViewModifier {
     var padding: CGFloat = Theme.Spacing.lg
@@ -58,13 +58,13 @@ extension View {
         modifier(CardModifier(padding: padding))
     }
 
-    /// Standard tappable browse row (listings, resources, nearby).
+    // standard tappable browse row
     func browseRowStyle() -> some View {
         contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
     }
 }
 
-// MARK: - Buttons
+// buttons
 
 struct PrimaryButtonStyle: ButtonStyle {
     var tint: Color = Theme.Palette.primaryGreen

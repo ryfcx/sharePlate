@@ -1,9 +1,9 @@
 //
-//  SupabaseRealtimeJSON.swift
-//  sharePlate
+// supabaserealtimejson.swift
+// shareplate
 //
-//  Decoder for postgres_changes payloads. Must match PostgREST so fractional
-//  timestamps and other Supabase date formats don't silently drop live updates.
+// decoder for realtime payloads
+// must match postgrest so dates do not drop live updates
 //
 
 import Foundation

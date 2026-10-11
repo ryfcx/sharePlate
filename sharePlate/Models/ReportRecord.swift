@@ -1,7 +1,4 @@
-//
-//  ReportRecord.swift
-//  sharePlate
-//
+// report record
 
 import Foundation
 import SwiftData

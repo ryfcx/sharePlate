@@ -1,18 +1,20 @@
--- Permanent Lincoln Park listings — run this entire file once in Supabase → SQL Editor.
+-- permanent lincoln park listings, run whole file once in sql editor
 --
--- Replaces the old every-minute rotation (15 short-lived meals across Chicago).
--- This leaves 15 fixed Lincoln Park spots, 100 packages each. They do not expire or move.
--- An hourly job only puts one back if it was picked up or deleted.
--- A listing someone is in the middle of reserving is left alone.
+-- replaces old every minute rotation with 15 fixed lincoln park spots
+-- these are neighbor donations, grocery spots, and restaurants
+-- grocery and restaurant spots have 100 packages
+-- neighbor donations are smaller and do not expire or move
+-- hourly job puts one back if picked up or deleted
+-- a listing being reserved is left alone
 
 create extension if not exists pgcrypto;
 
 alter table public.listings
   add column if not exists is_auto_donor boolean not null default false;
 
--- ---------------------------------------------------------------------------
--- System poster. Listings need a real auth user for posted_by.
--- ---------------------------------------------------------------------------
+--
+-- system poster, listings need a real auth user for posted by
+--
 
 do $$
 declare
@@ -82,9 +84,9 @@ begin
   );
 end $$;
 
--- ---------------------------------------------------------------------------
--- Keep the 15 Lincoln Park spots in place.
--- ---------------------------------------------------------------------------
+--
+-- keep the 15 lincoln park spots in place
+--
 
 create or replace function public.maintain_donor_listings()
 returns void
@@ -147,9 +149,9 @@ begin
         values
           (
             'a15a0001-0000-4000-8000-000000000001'::uuid,
-            'Fresh garden vegetables', 'produce', 100, 'feeds10plus', 'porch',
+            'Extra garden vegetables', 'other', 4, 'feeds3to5', 'porch',
             '2200 N Cannon Dr, Chicago', 41.9217, -87.6336,
-            'Bagged and left on the porch.', 'outside', null::integer
+            'Extra from a neighbor''s garden.', 'outside', null::integer
           ),
           (
             'a15a0001-0000-4000-8000-000000000002'::uuid,
@@ -159,39 +161,39 @@ begin
           ),
           (
             'a15a0001-0000-4000-8000-000000000003'::uuid,
-            'Prepared pasta meals', 'preparedMeals', 100, 'feeds10plus', 'lobby',
+            'Armitage Pasta Kitchen', 'preparedMeals', 100, 'feeds10plus', 'lobby',
             '1000 W Armitage Ave, Chicago', 41.9184, -87.6488,
-            'Keep refrigerated.', 'outside', null
+            'Restaurant surplus from tonight''s service.', 'outside', null
           ),
           (
             'a15a0001-0000-4000-8000-000000000004'::uuid,
-            'Apples and oranges', 'produce', 100, 'feeds10plus', 'meetOutside',
+            'Homemade cookies', 'other', 3, 'feeds3to5', 'meetOutside',
             '2300 N Seminary Ave, Chicago', 41.9238, -87.6554,
-            'Mixed fruit bags.', 'outside', null
+            'Baked this afternoon. A neighbor is sharing the extras.', 'outside', null
           ),
           (
             'a15a0001-0000-4000-8000-000000000005'::uuid,
-            'Mixed grocery bags', 'mixed', 100, 'feeds10plus', 'communityFridge',
+            'Racine Taco Spot', 'preparedMeals', 100, 'feeds10plus', 'communityFridge',
             '1200 W Armitage Ave, Chicago', 41.9180, -87.6586,
-            'Shelf-stable groceries.', 'curb', 1
+            'Restaurant surplus. Tacos packed to go.', 'curb', 1
           ),
           (
             'a15a0001-0000-4000-8000-000000000006'::uuid,
-            'Rice and canned soup', 'pantry', 100, 'feeds10plus', 'frontDesk',
+            'Lakeview Noodle Shop', 'preparedMeals', 100, 'feeds10plus', 'frontDesk',
             '2400 N Lakeview Ave, Chicago', 41.9258, -87.6392,
-            'Pantry staples, unopened.', 'outside', null
+            'Restaurant surplus. Noodle bowls, keep warm.', 'outside', null
           ),
           (
             'a15a0001-0000-4000-8000-000000000007'::uuid,
-            'Bottled drinks', 'drinks', 100, 'feeds10plus', 'communityFridge',
+            'Leftover snacks', 'other', 2, 'feeds1to2', 'communityFridge',
             '1700 N Halsted St, Chicago', 41.9136, -87.6486,
-            'Still sealed.', 'curb', 1
+            'Unopened snacks a neighbor can''t finish.', 'curb', 1
           ),
           (
             'a15a0001-0000-4000-8000-000000000008'::uuid,
-            'Vegetable soup', 'preparedMeals', 100, 'feeds10plus', 'porch',
+            'Homemade vegetable soup', 'other', 2, 'feeds1to2', 'porch',
             '1550 N Larrabee St, Chicago', 41.9112, -87.6432,
-            'Cooled and packed.', 'outside', null
+            'A neighbor cooked extra. Keep refrigerated.', 'outside', null
           ),
           (
             'a15a0001-0000-4000-8000-000000000009'::uuid,
@@ -201,21 +203,21 @@ begin
           ),
           (
             'a15a0001-0000-4000-8000-000000000010'::uuid,
-            'Sandwich trays', 'preparedMeals', 100, 'feeds10plus', 'meetOutside',
+            'Harbor Sandwich House', 'preparedMeals', 100, 'feeds10plus', 'meetOutside',
             '2800 N Lake Shore Dr, Chicago', 41.9332, -87.6308,
-            'Made this afternoon.', 'outside', null
+            'Restaurant surplus. Sandwich trays from lunch service.', 'outside', null
           ),
           (
             'a15a0001-0000-4000-8000-000000000011'::uuid,
-            'Snack boxes', 'mixed', 100, 'feeds10plus', 'porch',
+            'Extra kids'' lunches', 'other', 3, 'feeds1to2', 'porch',
             '2300 N Orchard St, Chicago', 41.9236, -87.6474,
-            'Crackers and fruit, boxed.', 'outside', null
+            'Packed lunches a family is sharing.', 'outside', null
           ),
           (
             'a15a0001-0000-4000-8000-000000000012'::uuid,
-            'Canned fruit', 'pantry', 100, 'feeds10plus', 'communityFridge',
+            'Spare canned goods', 'other', 4, 'feeds3to5', 'communityFridge',
             '800 W Wrightwood Ave, Chicago', 41.9306, -87.6496,
-            'Unopened cans.', 'curb', 1
+            'Unopened cans from a neighbor''s cupboard.', 'curb', 1
           ),
           (
             'a15a0001-0000-4000-8000-000000000013'::uuid,
@@ -225,9 +227,9 @@ begin
           ),
           (
             'a15a0001-0000-4000-8000-000000000014'::uuid,
-            'Prepared rice bowls', 'preparedMeals', 100, 'feeds10plus', 'meetOutside',
+            'Clark Street Grill', 'preparedMeals', 100, 'feeds10plus', 'meetOutside',
             '1600 N Clark St, Chicago', 41.9116, -87.6318,
-            'Keep refrigerated.', 'outside', null
+            'Restaurant surplus from the grill.', 'outside', null
           ),
           (
             'a15a0001-0000-4000-8000-000000000015'::uuid,
@@ -355,7 +357,7 @@ $$;
 revoke all on function public.maintain_donor_listings() from public;
 grant execute on function public.maintain_donor_listings() to service_role;
 
--- Stop the every-minute rotation. Check once an hour that the 15 are still there.
+-- stop the every minute rotation, checks hourly that 15 are still there
 
 do $$
 begin

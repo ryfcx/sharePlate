@@ -1,9 +1,4 @@
-//
-//  MapFilterOption.swift
-//  sharePlate
-//
-//  Grouped map filters: Pantry, Donor, and Store each have sub-options.
-//
+// map filter option
 
 import SwiftUI
 
@@ -74,15 +69,15 @@ enum MapFilterOption: String, CaseIterable, Identifiable {
     var tint: Color {
         switch category {
         case .pantry: return Theme.Palette.pantryGreen
-        case .donor: return Theme.Palette.availableOrange
-        case .store: return Theme.Palette.mealBlue
+        case .donor: return Theme.Palette.fridgePurple
+        case .store: return Theme.Palette.primaryGreen
         }
     }
 }
 
-// MARK: - Filter engine
+// filter engine
 
-/// Shared map filter rules so resources and listings stay consistent.
+// shared map filter rules so all pins agree
 enum MapFilterLogic {
     static func pantryFilters(in selected: Set<MapFilterOption>) -> Set<MapFilterOption> {
         selected.filter { $0.category == .pantry }
@@ -96,12 +91,12 @@ enum MapFilterLogic {
         selected.filter { $0.category == .store }
     }
 
-    /// GCFD resources — only shown when pantry filters are active (or nothing is selected).
+    // gcfd spots show when pantry filters are on
     static func includesResources(selected: Set<MapFilterOption>) -> Bool {
         selected.isEmpty || !pantryFilters(in: selected).isEmpty
     }
 
-    /// Neighbor listings — shown when donor/store filters are active (or nothing is selected).
+    // neighbor posts show when donor or store filters are on
     static func includesListings(selected: Set<MapFilterOption>) -> Bool {
         selected.isEmpty || !donorFilters(in: selected).isEmpty || !storeFilters(in: selected).isEmpty
     }
@@ -111,7 +106,7 @@ enum MapFilterLogic {
     }
 }
 
-// MARK: - Matching
+// matching helpers
 
 extension FoodResource {
     func matches(_ filters: Set<MapFilterOption>) -> Bool {
@@ -144,7 +139,7 @@ extension FoodResource {
         type == .pantry
     }
 
-    /// Pantry whose summary explicitly indicates shelf-stable / dry goods only.
+    // pantry that only has dry goods
     private var matchesPantryDryOnly: Bool {
         guard type == .pantry else { return false }
         let text = summary.lowercased()
@@ -174,9 +169,9 @@ extension FoodListing {
         if donor.isEmpty && store.isEmpty { return true }
         if isPermanent { return matchesPermanentStoreFilters(store) }
 
-        var matched = false
-        if !donor.isEmpty {
-            matched = donor.contains { option in
+// each chip shows its own kind, picked ones add up
+        if isIndividualDonation {
+            return donor.contains { option in
                 switch option {
                 case .donorDropOff: return pickupType == .communityFridge
                 case .donorPickup: return pickupType != .communityFridge
@@ -184,21 +179,28 @@ extension FoodListing {
                 }
             }
         }
-        if !store.isEmpty {
-            matched = matched || store.contains { option in
-                switch option {
-                case .storeGrocery:
-                    return [.produce, .pantry, .bakery, .drinks, .mixed].contains(category)
-                case .storeRestaurant:
-                    return category == .preparedMeals
-                default: return false
-                }
+
+        return store.contains { option in
+            switch option {
+            case .storeGrocery:
+                return [.produce, .pantry, .bakery, .drinks, .mixed].contains(category)
+            case .storeRestaurant:
+                return category == .preparedMeals
+            default: return false
             }
         }
-        return matched
     }
 
-    /// Permanent stores follow the Store filters only, so a Donor filter still shows neighbor posts alone.
+    // food a person is sharing, not shop surplus
+    var isIndividualDonation: Bool {
+        category == .other
+    }
+
+    var typePinColor: Color {
+        isIndividualDonation ? Theme.Palette.fridgePurple : Theme.Palette.primaryGreen
+    }
+
+    // shops follow store filters only
     private func matchesPermanentStoreFilters(_ store: Set<MapFilterOption>) -> Bool {
         guard !store.isEmpty else { return false }
         return store.contains { option in

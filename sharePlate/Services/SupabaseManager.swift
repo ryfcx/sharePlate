@@ -1,6 +1,6 @@
 //
-//  SupabaseManager.swift
-//  sharePlate
+// supabasemanager.swift
+// shareplate
 //
 
 import Foundation

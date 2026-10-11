@@ -1,9 +1,9 @@
 //
-//  PushNotificationService.swift
-//  sharePlate
+// pushnotificationservice.swift
+// shareplate
 //
-//  Registers for APNs and uploads tokens to Supabase. Delivery is handled by the
-//  `send-handoff-push` Edge Function — see `supabase/README_PUSH.md`.
+// registers for push and uploads tokens to supabase
+// delivery is handled by the send handoff push edge function
 //
 
 import Foundation
@@ -26,9 +26,8 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
         UNUserNotificationCenter.current().delegate = self
     }
 
-    /// Requests local-notification permission (needed for nearby-alert local
-    /// notifications regardless of push) and, only when push is enabled,
-    /// registers for APNs remote notifications too.
+    // asks for local notification permission
+    // registers for remote push only when push is enabled
     func requestAuthorizationAndRegister() async {
         let center = UNUserNotificationCenter.current()
         do {
@@ -38,7 +37,7 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
                 UIApplication.shared.registerForRemoteNotifications()
             }
         } catch {
-            // User declined or system error — in-app Realtime still works.
+            // user declined or system error, in app realtime still works
         }
     }
 
@@ -63,7 +62,7 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
         await SupabaseDeviceTokenService.remove(userID: userID, token: token)
     }
 
-    // MARK: - UNUserNotificationCenterDelegate
+    // notification delegate
 
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,

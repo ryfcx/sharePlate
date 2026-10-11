@@ -1,6 +1,6 @@
 //
-//  SharePlateLogoView.swift
-//  sharePlate
+//  shareplatelogoview.swift
+//  shareplate
 //
 
 import SwiftUI

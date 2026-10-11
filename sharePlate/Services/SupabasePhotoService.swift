@@ -1,6 +1,6 @@
 //
-//  SupabasePhotoService.swift
-//  sharePlate
+// supabasephotoservice.swift
+// shareplate
 //
 
 import Foundation
@@ -10,7 +10,7 @@ enum SupabasePhotoService {
     private static let client = SupabaseManager.client
     static let bucket = "listing-photos"
 
-    /// Uploads JPEG bytes and returns the storage path stored in `listings.photo_url`.
+    // uploads jpeg bytes and returns storage path for listings photo url
     static func upload(listingID: UUID, userID: UUID, data: Data) async throws -> String {
         let path = "\(userID.uuidString.lowercased())/\(listingID.uuidString.lowercased()).jpg"
         try await client.storage
@@ -23,7 +23,7 @@ enum SupabasePhotoService {
         return path
     }
 
-    /// Downloads using authenticated Storage API (works without a public bucket).
+    // downloads with authenticated storage api, works without public bucket
     static func download(storedValue: String) async throws -> Data {
         let path = storagePath(from: storedValue)
         return try await client.storage.from(bucket).download(path: path)

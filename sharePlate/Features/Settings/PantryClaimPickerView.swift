@@ -1,10 +1,10 @@
 //
-//  PantryClaimPickerView.swift
-//  sharePlate
+// pantryclaimpickerview.swift
+// shareplate
 //
-//  Search the GCFD directory and claim a pantry to manage. Claiming is
-//  first-come-first-served, keyed by GCFD's own stable location id so it
-//  survives the daily dataset resync — see PantryClaim.
+// search directory and claim a pantry to manage
+// first come first served by stable location id
+// survives daily dataset resync
 //
 
 import SwiftUI

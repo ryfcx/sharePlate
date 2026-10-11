@@ -1,19 +1,9 @@
 #!/usr/bin/env python3
-"""Greater Chicago Food Depository - daily food location sync.
+"""daily food location sync.
 
-Pulls every food location (plus contact info and opening hours) that powers the
-"Find Food" map on https://www.chicagosfoodbank.org/find-food-2/ and stores them
-in a local SQL (SQLite) database. Re-running the script refreshes / upserts the
-data so the database always reflects the current state of the network.
-
-This uses the same internal JSON API that the map widget itself calls
-(https://api.accessfood.org), NOT HTML scraping, so it is fast and stable.
-
-Standard library only - no `pip install` required. Just run:
-
-    python gcfd_food_sync.py
-
-Run it once a day (see README.md for Windows Task Scheduler instructions).
+pulls every food location for the find food map and stores them locally.
+rerunning refreshes the data. uses the same json api the map uses.
+standard library only, just run python gcfd_food_sync.py.
 """
 
 from __future__ import annotations
@@ -35,29 +25,26 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Iterable
 
-# --------------------------------------------------------------------------- #
-# Configuration
-# --------------------------------------------------------------------------- #
+# config
 
 API_BASE = "https://api.accessfood.org/api/MapInformation/"
 
-# The GCFD "English Map" security token, taken from the accessfood-widget embed
-# on the Find Food page (data-map="...").
+# map token from the find food widget
+# lets the api know which map to use
 MAP_TOKEN = "DF82D6EF-FE73-4F97-80D1-CB23CC19D443"
 
-# Search radius (miles) from the map's default center. ~100mi comfortably covers
-# the entire Greater Chicago Food Depository service area (Cook County and
-# surroundings). Going much larger starts pulling in unrelated national
-# locations from the shared Vivery network.
+# search radius in miles
+# wide enough to cover the chicago area
+# bigger pulls in far away spots we do not want
 DEFAULT_RADIUS_MILES = 100
 
-# Include locations flagged as "out of network" in the results.
+# include out of network spots too
 DEFAULT_SHOW_OUT_OF_NETWORK = True
 
-# How many location ids to request per services / schedules call.
+# how many ids to ask for at once
 BATCH_SIZE = 25
 
-# Politeness / robustness settings.
+# request timing and retry settings
 REQUEST_TIMEOUT = 60          # seconds
 REQUEST_DELAY = 0.25          # seconds between requests
 MAX_RETRIES = 4
@@ -70,15 +57,15 @@ USER_AGENT = (
 
 DEFAULT_DB_PATH = "gcfd_food.db"
 
-# Where to copy the finished DB so the iOS app bundles the latest data.
-# Resolved relative to this script: <repo>/sharePlate/Resources/gcfd_food.db
+# where to copy the finished db for the app
+# path is set from this file spot
 DEFAULT_APP_DB_PATH = str(
     Path(__file__).resolve().parent.parent / "sharePlate" / "Resources" / "gcfd_food.db"
 )
 
-# Supabase Storage — hosts the finished DB so already-installed apps can pick up
-# fresh data without waiting for a new build. Public read, write via service role
-# key only (never exposed to the app). Same project the app already uses.
+# storage spot for the finished db
+# lets old app builds grab fresh data
+# same project the app already uses
 DEFAULT_SUPABASE_URL = "https://fkcsgxywdpcdwdlhflgv.supabase.co"
 SUPABASE_STORAGE_BUCKET = "app-data"
 SUPABASE_STORAGE_OBJECT_PATH = "gcfd_food.db"
@@ -86,9 +73,7 @@ SUPABASE_STORAGE_OBJECT_PATH = "gcfd_food.db"
 log = logging.getLogger("gcfd_sync")
 
 
-# --------------------------------------------------------------------------- #
-# Small helpers
-# --------------------------------------------------------------------------- #
+# small helpers
 
 def clean(value: Any) -> Any:
     """Trim whitespace from strings (the API pads several fields)."""
@@ -163,9 +148,7 @@ def build_ssl_context(insecure: bool = False) -> ssl.SSLContext:
         return ssl.create_default_context()
 
 
-# --------------------------------------------------------------------------- #
-# API client
-# --------------------------------------------------------------------------- #
+# api client
 
 class AccessFoodClient:
     """Thin client over the accessfood.org MapInformation API."""
@@ -175,8 +158,7 @@ class AccessFoodClient:
         self.ssl_context = ssl_context
 
     def _get(self, endpoint: str, params: dict[str, Any]) -> Any:
-        # Use quote_via=quote so commas/pipes in id lists are preserved the way
-        # the API expects (it does not want them percent-encoded away).
+        # keep commas and pipes as is for the api
         query = urllib.parse.urlencode(params, quote_via=urllib.parse.quote, safe="|,")
         url = f"{self.base}{endpoint}?{query}"
 
@@ -190,7 +172,7 @@ class AccessFoodClient:
                     raw = resp.read().decode("utf-8")
                 time.sleep(REQUEST_DELAY)
                 return json.loads(raw)
-            except Exception as err:  # noqa: BLE001 - we want to retry on anything
+            except Exception as err:  # noqa: BLE001 - retry on any error
                 last_err = err
                 wait = RETRY_BACKOFF * attempt
                 log.warning("Request failed (attempt %d/%d) for %s: %s; retrying in %.1fs",
@@ -235,9 +217,7 @@ class AccessFoodClient:
         return result if isinstance(result, list) else []
 
 
-# --------------------------------------------------------------------------- #
-# Database
-# --------------------------------------------------------------------------- #
+# database
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS locations (
@@ -543,9 +523,7 @@ def replace_schedules(conn: sqlite3.Connection, location_ids: list[int],
         )
 
 
-# --------------------------------------------------------------------------- #
-# Sync orchestration
-# --------------------------------------------------------------------------- #
+# sync steps
 
 def fetch_all_locations(client: AccessFoodClient, *, region_id: int,
                         region_map_id: int, lat: float, lng: float, radius: int,
@@ -572,7 +550,7 @@ def fetch_all_locations(client: AccessFoodClient, *, region_id: int,
         log.info("Fetched page %d (%d/%d locations)", page, len(locations), total)
         page += 1
 
-    # De-duplicate on location_id (paged search can overlap).
+    # drop dupes from overlap pages
     unique: dict[int, dict] = {}
     for loc in locations:
         lid = loc.get("locationId")
@@ -606,12 +584,12 @@ def run_sync(db_path: str, *, radius: int, show_out_of_network: bool,
         total_services = 0
         total_schedules = 0
 
-        # Upsert locations.
+        # save locations
         for loc in locations:
             upsert_location(conn, loc, run_ts)
         conn.commit()
 
-        # Fetch + replace services and schedules in batches.
+        # grab services and hours in batches
         all_ids = [loc["locationId"] for loc in locations]
         id_region = {loc["locationId"]: loc.get("regionId") for loc in locations}
 
@@ -630,7 +608,7 @@ def run_sync(db_path: str, *, radius: int, show_out_of_network: bool,
                      i, (len(all_ids) + BATCH_SIZE - 1) // BATCH_SIZE,
                      len(services), len(schedules))
 
-        # Deactivate locations that were not seen in this run.
+        # mark missing spots as closed
         cur = conn.execute(
             "UPDATE locations SET is_active = 0 WHERE last_updated < ? AND is_active = 1",
             (run_ts,),
@@ -722,7 +700,7 @@ def upload_to_storage(db_path: str, *, supabase_url: str, insecure: bool = False
             "Authorization": f"Bearer {service_key}",
             "apikey": service_key,
             "Content-Type": "application/x-sqlite3",
-            # Overwrite the existing object instead of failing on conflict.
+            # overwrite the old file if needed
             "x-upsert": "true",
         },
     )

@@ -1,9 +1,9 @@
 //
-//  ListingCatalogSyncService.swift
-//  sharePlate
+// listingcatalogsyncservice.swift
+// shareplate
 //
-//  Listens for listing inserts and status changes so new food and pickups
-//  appear on every open device without waiting for the next poll.
+// listens for listing inserts and status changes
+// new food shows on every open device without polling
 //
 
 import Foundation
@@ -29,9 +29,8 @@ final class ListingCatalogSyncService {
         enqueue { await self.attachIfNeeded() }
     }
 
-    /// Re-attaches after returning to foreground if the socket dropped the
-    /// catalog channel. Never adds postgres callbacks to an already-subscribed
-    /// channel — RealtimeV2 rejects that.
+    // reattaches after foreground if socket dropped the channel
+    // never adds callbacks to an already subscribed channel
     func ensureConnected() {
         enqueue { await self.attachIfNeeded() }
     }
@@ -64,8 +63,8 @@ final class ListingCatalogSyncService {
         let client = SupabaseManager.client
         let channel = client.realtimeV2.channel("listing-catalog")
 
-        // `channel(_:)` reuses the existing topic. If a concurrent caller already
-        // subscribed it, adding more postgres_changes callbacks would crash.
+        // channel reuses existing topic
+        // adding more callbacks to a subscribed channel would crash
         if channel.status == .subscribed || channel.status == .subscribing {
             self.channel = channel
             return

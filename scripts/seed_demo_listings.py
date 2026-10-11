@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seed and remove Chicago-only person-to-person SharePlate demo listings."""
+"""seed and remove chicago demo listings."""
 
 from __future__ import annotations
 
@@ -28,8 +28,8 @@ DEFAULT_SUPABASE_URL = "https://fkcsgxywdpcdwdlhflgv.supabase.co"
 PHOTO_BUCKET = "listing-photos"
 SEED_TAG = "shareplate_chicago_demo_v1"
 
-# Conservative bounding box around the City of Chicago. Every manifest entry
-# must pass this check; the script has no flag for bypassing it.
+# simple chicago bounds, every entry must pass this check
+# script has no flag for bypassing it
 CHICAGO_BOUNDS = {
     "min_latitude": 41.64,
     "max_latitude": 42.03,

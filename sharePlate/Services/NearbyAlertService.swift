@@ -1,15 +1,15 @@
 //
-//  NearbyAlertService.swift
-//  sharePlate
+// nearbyalertservice.swift
+// shareplate
 //
-//  Local notifications for "something opened up nearby" — a pantry's
-//  scheduled opening, or a new food/pantry-surplus listing. These are
-//  on-device UNUserNotificationCenter requests, not server push: the app
-//  ships without APNs entitlements (see PushNotificationConfiguration),
-//  since free Apple Developer teams can't use push. Calendar-triggered
-//  local notifications still fire even with the app fully closed; the
-//  new-listing check only fires while the app is running (foreground, or
-//  briefly after backgrounding/on a background location wake).
+// local notifications for nearby food and pantry openings
+// scheduled openings or new food listings
+// on device notifications only, not server push
+// app ships without push entitlements
+// pantry alerts can fire when app is fully closed
+// local notifications still fire even with app closed
+// new listing check only runs while app is running
+// briefly after backgrounding or on location wake
 //
 
 import Foundation
@@ -18,8 +18,7 @@ import UserNotifications
 
 @MainActor
 enum NearbyAlertService {
-    /// Matches HomeMapView's "near" radius so alerts line up with what the
-    /// Nearby panel would already show.
+    // matches home map near radius so alerts line up with nearby panel
     static let nearRadiusMeters: CLLocationDistance = 8046
 
     private static let pantryNotificationPrefix = "pantry-open-"
@@ -27,11 +26,10 @@ enum NearbyAlertService {
     private static let maxNotifiedListingIDs = 200
     private static let maxScheduledPantries = 15
 
-    // MARK: - Pantry opening schedule
+    // pantry opening schedule
 
-    /// Reschedules "this pantry just opened" local notifications for the
-    /// closest open (non-claimed-closed) pantries. Safe to call often —
-    /// it always clears its own prior requests first.
+    // refreshes pantry open alerts for closest open pantries
+    // safe to call often, clears old requests first
     static func refreshPantryOpenSchedule(resources: [FoodResource], near coordinate: CLLocationCoordinate2D) async {
         let center = UNUserNotificationCenter.current()
         guard await hasNotificationPermission(center) else { return }
@@ -73,9 +71,8 @@ enum NearbyAlertService {
         }
     }
 
-    /// The first weekly (non-monthly, non-biweekly) opening interval for a
-    /// resource — used as its single representative "opens at" alert so
-    /// scheduled notifications stay well under iOS's 64-pending-request cap.
+    // first weekly opening used as the single opens at alert
+    // keeps scheduled count well under the system limit
     private static func primaryWeeklyOpening(for resource: FoodResource) -> OpeningInterval? {
         resource.openingIntervals.first { !$0.everyOtherWeek && $0.weeksOfMonth.isEmpty }
     }
@@ -91,11 +88,11 @@ enum NearbyAlertService {
         return formatter.string(from: date)
     }
 
-    // MARK: - New nearby listings
+    // new nearby listings
 
-    /// Checks listings created since the last check for ones nearby and not
-    /// posted by this device, firing an immediate system notification for each.
-    /// Call whenever the local listing catalog changes while the app is running.
+    // checks recent listings for nearby ones not posted by this device
+    // sends a notification for each match
+    // call when local catalog changes while app is running
     static func checkForNewNearbyListings(
         _ listings: [FoodListing],
         near coordinate: CLLocationCoordinate2D,
@@ -135,10 +132,9 @@ enum NearbyAlertService {
         UserDefaults.standard.set(Array(notifiedIDs), forKey: notifiedListingIDsKey)
     }
 
-    // MARK: - Posting confirmation
+    // posting confirmation
 
-    /// Fires an immediate local notification confirming a provider's own
-    /// listing went live, with its reference number for easy lookup.
+    // confirms own listing went live with its reference number
     static func notifyListingPosted(_ listing: FoodListing) async {
         let center = UNUserNotificationCenter.current()
         guard await hasNotificationPermission(center) else { return }
@@ -157,11 +153,10 @@ enum NearbyAlertService {
         try? await center.add(request)
     }
 
-    // MARK: - Provider reservation alert
+    // provider reservation alert
 
-    /// Fires on the provider's device when Realtime reports that one of their
-    /// listings has been reserved. Like new-nearby-listing alerts, this works
-    /// while the app is running or briefly alive in the background.
+    // alerts provider when one of their listings gets reserved
+    // works while app is running or briefly in background
     static func notifyListingReserved(_ listing: FoodListing) async {
         guard let remoteID = listing.remoteID else { return }
         let center = UNUserNotificationCenter.current()

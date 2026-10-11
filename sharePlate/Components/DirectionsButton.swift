@@ -1,6 +1,6 @@
 //
-//  DirectionsButton.swift
-//  sharePlate
+//  directionsbutton.swift
+//  shareplate
 //
 
 import SwiftUI

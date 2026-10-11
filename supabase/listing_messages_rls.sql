@@ -1,8 +1,8 @@
--- Listing messages RLS — run in Supabase SQL editor after creating listing_messages.
+-- listing messages rls, run after creating listing messages
 
 alter table public.listing_messages enable row level security;
 
--- Bypass listings RLS when checking participation (subquery visibility).
+-- bypass listings rls when checking participation
 create or replace function public.is_listing_message_participant(target_listing_id uuid)
 returns boolean
 language sql

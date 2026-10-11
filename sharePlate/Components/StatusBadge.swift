@@ -1,6 +1,6 @@
 //
-//  StatusBadge.swift
-//  sharePlate
+//  statusbadge.swift
+//  shareplate
 //
 
 import SwiftUI

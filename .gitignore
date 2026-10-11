@@ -1,4 +1,4 @@
-# Xcode
+# xcode
 build/
 DerivedData/
 *.xcuserstate
@@ -6,19 +6,19 @@ xcuserdata/
 *.xcscmblueprint
 *.xccheckout
 
-# Simulator / build products
+# simulator files
 *.ipa
 *.dSYM.zip
 *.dSYM
 
-# macOS
+# mac stuff
 .DS_Store
 
-# Python
+# python stuff
 __pycache__/
 *.pyc
 
-# Secrets and signing credentials
+# keys and secrets
 .env
 .env.*
 !.env.example
@@ -28,20 +28,24 @@ __pycache__/
 *.key
 *.mobileprovision
 
-# CocoaPods / SPM (project uses SPM; keep Package.resolved tracked for reproducible builds)
+# pods stuff
 
-# Local AI handoff / session notes
+# local notes
 /HANDOFF.md
 /SESSION_SUMMARY.md
 /.claude/
 
-# Local source assets and duplicate downloads
+# local art and extra downloads
 /0xProto_2_502/
 /foodAPI.zip
 /gcfd_food.db
 /sharePlateLogo.png
+/sharePlateLogoNew.jpg
+/sharePlateLogoNew.png
+/sharePlateLogoNew2.png
+/sharePlateBanner.png
 /ChatGPT Image*.png
 
-# Local demo listing inputs and cleanup state
+# demo stuff
 /demo/images/
 /demo/.seed-state.json

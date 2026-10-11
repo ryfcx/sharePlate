@@ -1,5 +1,5 @@
--- Device tokens for APNs push delivery.
--- Run in Supabase SQL editor, then deploy the Edge Function (see README_PUSH.md).
+-- device tokens for push delivery
+-- run in sql editor, then deploy the edge function
 
 create table if not exists public.device_tokens (
   id uuid primary key default gen_random_uuid(),
@@ -23,11 +23,11 @@ create policy "Users manage own device tokens"
 
 grant select, insert, update, delete on public.device_tokens to authenticated;
 
--- Enable Realtime for handoff tables (Dashboard → Database → Publications → supabase_realtime).
+-- enable realtime for handoff tables
 alter publication supabase_realtime add table public.listings;
 alter publication supabase_realtime add table public.listing_messages;
 
--- Optional: webhook triggers (configure in Dashboard → Database → Webhooks, or use pg_net).
--- Point both to: https://<project-ref>.supabase.co/functions/v1/send-handoff-push
---   1) listings UPDATE
---   2) listing_messages INSERT
+-- optional webhook triggers, configure in dashboard webhooks or with pg net
+-- point both to the send handoff push function url
+-- one for listings update
+-- two for listing messages insert

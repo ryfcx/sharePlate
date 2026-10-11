@@ -1,6 +1,6 @@
 //
-//  ListingDetailView.swift
-//  sharePlate
+// listingdetailview.swift
+// shareplate
 //
 
 import SwiftUI
@@ -109,7 +109,7 @@ struct ListingDetailView: View {
         }
     }
 
-    // MARK: - Cards
+    // cards
 
     private var statusAndCountdown: some View {
         ViewThatFits(in: .horizontal) {
@@ -225,7 +225,7 @@ struct ListingDetailView: View {
         }
     }
 
-    // MARK: - Action area
+    // action area
 
     @ViewBuilder
     private var actionArea: some View {
@@ -340,7 +340,7 @@ struct ListingDetailView: View {
             .padding(.vertical, Theme.Spacing.sm)
     }
 
-    // MARK: - Helpers
+    // helpers
 
     private var handoffMethodText: String {
         if listing.isDropOff, let radius = listing.dropOffRadiusLabel {
@@ -387,8 +387,8 @@ struct ListingDetailView: View {
             .frame(height: 1)
     }
 
-    /// Same layout as `infoRow`, but for user-typed free text (notes) that
-    /// can be translated on-device rather than looked up in the catalog.
+    // same layout for notes that can be translated
+    // uses on device translation for free text
     private func translatableInfoRow(icon: String, title: LocalizedStringKey, value: String) -> some View {
         HStack(alignment: .top, spacing: Theme.Spacing.md) {
             Image(systemName: icon)

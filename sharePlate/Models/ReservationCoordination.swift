@@ -1,10 +1,4 @@
-//
-//  ReservationCoordination.swift
-//  sharePlate
-//
-//  Active handoff state shared between donor and recipient via
-//  `FoodListing.contactInstructions` (JSON synced through Supabase).
-//
+// reservation coordination
 
 import Foundation
 import CoreLocation
@@ -16,13 +10,13 @@ struct ReservationCoordination: Codable, Equatable {
     var meetupLatitude: Double?
     var meetupLongitude: Double?
     var providerNote: String = ""
-    /// Consumer's drop-off address — set when they reserve a drop-off listing.
+    // where to drop the food for dropoff posts
     var consumerDropOffAddress: String = ""
     var consumerDropOffLatitude: Double?
     var consumerDropOffLongitude: Double?
-    /// When true, the picker can see the provider's instructions.
+    // true means the picker can see the notes
     var instructionsPublished: Bool = false
-    /// Packages claimed in this reservation (Screen C).
+    // packs claimed in this booking
     var reservedPackageCount: Int?
 
     var consumerDropOffCoordinate: CLLocationCoordinate2D? {
@@ -64,7 +58,7 @@ struct ReservationCoordination: Codable, Equatable {
         instructionsPublished && providerSetupComplete
     }
 
-    /// Instructions set when posting food — visible to pickers after they reserve.
+    // notes set when posting, seen after booking
     static func publishedAtPost(
         meetupAddress: String,
         handoffSpot: HandoffSpot,

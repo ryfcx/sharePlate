@@ -1,9 +1,4 @@
-//
-//  MapPlaceOpenStatus.swift
-//  sharePlate
-//
-//  Wireframe Screen A — green / orange / red map pin states.
-//
+// map place open status
 
 import SwiftUI
 
@@ -120,7 +115,7 @@ extension FoodResource {
         return .closed
     }
 
-    /// Preview status for a future day (e.g. Tomorrow tab) — open if hours exist that day.
+    // future day preview, open if hours exist
     func openStatusPreview(on date: Date, calendar: Calendar = .current) -> MapPlaceOpenStatus {
         if isTemporarilyClosed { return .closed }
         if hours.lowercased().contains("24") { return .open }

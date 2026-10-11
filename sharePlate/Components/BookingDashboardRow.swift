@@ -1,8 +1,8 @@
 //
-//  BookingDashboardRow.swift
-//  sharePlate
+//  bookingdashboardrow.swift
+//  shareplate
 //
-//  Active booking row with a large matching code and compact QR.
+//  active booking row with big matching code and small qr
 //
 
 import SwiftUI

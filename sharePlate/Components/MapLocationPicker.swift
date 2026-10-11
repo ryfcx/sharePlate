@@ -1,8 +1,8 @@
 //
-//  MapLocationPicker.swift
-//  sharePlate
+//  maplocationpicker.swift
+//  shareplate
 //
-//  Reusable address picker: tap the map, review the resolved address, confirm.
+//  address picker, tap map then review address and confirm
 //
 
 import SwiftUI

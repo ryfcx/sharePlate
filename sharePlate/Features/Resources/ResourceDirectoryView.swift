@@ -1,6 +1,6 @@
 //
-//  ResourceDirectoryView.swift
-//  sharePlate
+// resourcedirectoryview.swift
+// shareplate
 //
 
 import SwiftUI

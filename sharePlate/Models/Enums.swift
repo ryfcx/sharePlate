@@ -1,7 +1,4 @@
-//
-//  Enums.swift
-//  sharePlate
-//
+// enums
 
 import SwiftUI
 
@@ -59,7 +56,7 @@ enum ListingStatus: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// Maps a stored raw value to a status, tolerating legacy and snake_case values.
+    // reads old stored values kindly
     static func from(raw: String) -> ListingStatus {
         if let value = ListingStatus(rawValue: raw) { return value }
         switch raw {
@@ -70,14 +67,14 @@ enum ListingStatus: String, Codable, CaseIterable, Identifiable {
         return .available
     }
 
-    /// Listings with these statuses should not appear in the public browse catalog.
+    // these stay out of the public list
     static func isPubliclyVisible(_ status: ListingStatus) -> Bool {
         status == .available || status == .reserved || status == .readyForPickup
     }
 
     var isPubliclyVisible: Bool { Self.isPubliclyVisible(self) }
 
-    /// Value stored in Supabase (snake_case where needed).
+    // value saved online
     var supabaseRaw: String {
         switch self {
         case .pickedUp: return "picked_up"
@@ -166,10 +163,10 @@ enum QuantitySize: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    /// Small portions are flagged as limited quantity (yellow indicator).
+    // small portions show as low stock
     var isLimited: Bool { self == .feeds1to2 }
 
-    /// Rough package count shown on the active reservation screen.
+    // rough pack count for the booking screen
     var packageCount: Int {
         switch self {
         case .feeds1to2: return 1
@@ -183,7 +180,7 @@ enum QuantitySize: String, Codable, CaseIterable, Identifiable {
         return count == 1 ? String(localized: "1 pack") : String(localized: "\(count) packs")
     }
 
-    /// Wireframe-style quantity, e.g. `2x`.
+    // short amount like 2x
     var packagesShortLabel: String {
         "\(packageCount)x"
     }
@@ -269,7 +266,7 @@ enum ReservationTimeslot: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-/// How someone gets shared food from a neighbor listing.
+// how you get food from a neighbor post
 enum DonorHandoffMode: String, CaseIterable, Identifiable {
     case pickup
     case dropOff
@@ -359,7 +356,7 @@ enum PickupType: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-/// Quick deadline presets for frictionless posting.
+// quick presets to keep posting easy
 enum DeadlinePreset: String, CaseIterable, Identifiable {
     case thirtyMin
     case oneHour

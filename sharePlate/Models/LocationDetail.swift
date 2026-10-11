@@ -1,11 +1,8 @@
-//
-//  LocationDetail.swift
-//  sharePlate
-//
+// location detail
 
 import SwiftData
 
-/// Lightweight navigation token — avoids eager NavigationLink destination builds.
+// light token so screens open fast
 enum LocationDetail: Hashable {
     case listing(PersistentIdentifier)
     case resource(PersistentIdentifier)

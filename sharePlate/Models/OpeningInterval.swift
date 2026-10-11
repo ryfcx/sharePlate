@@ -1,29 +1,22 @@
-//
-//  OpeningInterval.swift
-//  sharePlate
-//
-//  One weekly opening window for a food resource, used to compute "open now".
-//
+// opening interval
 
 import Foundation
 
 struct OpeningInterval: Codable, Hashable {
-    /// 1 = Sunday, 2 = Monday, … 7 = Saturday (matches `Calendar.component(.weekday:)`).
+    // sunday is 1, monday is 2, and so on
     var weekday: Int
-    /// Minutes since midnight when the window opens.
+    // minutes after midnight when it opens
     var startMinutes: Int
-    /// Minutes since midnight when the window closes.
+    // minutes after midnight when it closes
     var endMinutes: Int
-    /// Which weeks of the month this window applies to (1 = first, … 5 = fifth).
-    /// Empty means every week.
+    // which weeks it runs, empty means every week
     var weeksOfMonth: [Int] = []
-    /// Bi-weekly schedules cannot be resolved without an anchor date from the API,
-    /// so these intervals are excluded from automatic "open now" checks.
+    // every other week spots are skipped for now
     var everyOtherWeek: Bool = false
-    /// Free-text schedule notes (holidays, closures, location-specific rules).
+    // extra schedule notes like holidays
     var notes: String?
 
-    /// Whether `date` falls inside this window.
+    // true if this time falls inside
     func contains(_ date: Date, calendar: Calendar = .current) -> Bool {
         guard !everyOtherWeek else { return false }
 
@@ -39,7 +32,7 @@ struct OpeningInterval: Codable, Hashable {
         return minutes >= startMinutes && minutes < endMinutes
     }
 
-    /// Parses ordinals like `"1st, 3rd"` into `[1, 3]`.
+    // turns 1st and 3rd into numbers
     static func parseWeekOrdinals(_ text: String) -> [Int] {
         let map: [String: Int] = ["1st": 1, "2nd": 2, "3rd": 3, "4th": 4, "5th": 5]
         return text
@@ -48,18 +41,18 @@ struct OpeningInterval: Codable, Hashable {
     }
 }
 
-/// Hours for one program/service offered at a location (e.g. pantry vs. hot meals).
+// hours for one program at a spot
 struct ServiceHours: Codable, Hashable, Identifiable {
     var id: String { serviceName }
 
     var serviceName: String
     var intervals: [OpeningInterval]
-    /// True when the schedule says to call for hours instead of listing times.
+    // true when it says to call for hours
     var callForHours: Bool
-    /// Aggregated notes from schedule rows (holidays, closures, special rules).
+    // saved notes like holidays and closures
     var notes: [String]
 
-    /// Human-readable lines for UI display.
+    // friendly lines for the screen
     func displayLines(calendar: Calendar = .current) -> [String] {
         var lines: [String] = []
 

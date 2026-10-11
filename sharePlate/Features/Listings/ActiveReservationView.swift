@@ -1,8 +1,8 @@
 //
-//  ActiveReservationView.swift
-//  sharePlate
+// activereservationview.swift
+// shareplate
 //
-//  Active pickup handoff — instructions are set when food is posted.
+// active pickup handoff with posted instructions
 //
 
 import SwiftUI
@@ -97,7 +97,7 @@ struct ActiveReservationView: View {
         return isOwner ? String(localized: "Active pickup") : String(localized: "Your pickup")
     }
 
-    // MARK: - Header
+    // header
 
     private var statusHeaderTitle: String {
         if isOwner {
@@ -212,7 +212,7 @@ struct ActiveReservationView: View {
         .cardStyle()
     }
 
-    // MARK: - Actions
+    // actions
 
     private var providerActions: some View {
         VStack(spacing: Theme.Spacing.md) {

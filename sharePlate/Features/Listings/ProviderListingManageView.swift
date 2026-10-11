@@ -1,8 +1,8 @@
 //
-//  ProviderListingManageView.swift
-//  sharePlate
+// providerlistingmanageview.swift
+// shareplate
 //
-//  Provider dashboard for an unclaimed listing — not the public consumer view.
+// provider view for unclaimed listing
 //
 
 import SwiftUI
@@ -30,10 +30,10 @@ struct ProviderListingManageView: View {
 
                 statusAndCountdown
 
-                if listing.revealsBookingCode {
+                if !listing.isPermanent {
                     BookingCodeCard(
                         code: listing.bookingCode,
-                        caption: "Match this with the neighbor."
+                        caption: "Your booking code. Neighbors see it after they reserve."
                     )
                 }
 

@@ -1,8 +1,8 @@
 //
-//  PackageCountPicker.swift
-//  sharePlate
+//  packagecountpicker.swift
+//  shareplate
 //
-//  Tap-based package count selector for post and reserve flows.
+//  tap based package count picker for post and reserve flows
 //
 
 import SwiftUI
@@ -12,7 +12,7 @@ struct PackageCountPicker: View {
     let range: ClosedRange<Int>
     var label: String = "packages"
 
-    /// A button per count only fits a short row. Larger stocks use a stepper.
+    // one button per count fits short rows, bigger stocks use stepper
     private var usesStepper: Bool { range.count > 8 }
 
     var body: some View {

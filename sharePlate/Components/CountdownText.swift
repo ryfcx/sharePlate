@@ -1,11 +1,11 @@
 //
-//  CountdownText.swift
-//  sharePlate
+//  countdowntext.swift
+//  shareplate
 //
 
 import SwiftUI
 
-/// Shows time remaining until a deadline. Use `live: false` in lists (much faster).
+// shows time left until deadline, use not live in lists for speed
 struct CountdownText: View {
     let deadline: Date
     var prefix: String = ""

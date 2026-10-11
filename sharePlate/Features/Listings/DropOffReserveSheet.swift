@@ -1,8 +1,8 @@
 //
-//  DropOffReserveSheet.swift
-//  sharePlate
+// dropoffreservesheet.swift
+// shareplate
 //
-//  Consumer enters their drop-off address and must be within the donor's radius.
+// consumer enters address within donor radius
 //
 
 import SwiftUI

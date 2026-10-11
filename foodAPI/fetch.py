@@ -70,13 +70,13 @@ def fetch_locations(
 
 
 def print_location(loc: dict) -> None:
-    """Pretty-print a single location record with all its fields."""
+    """print one spot with all its fields."""
     sep = "─" * 60
     print(sep)
     print(f"  {loc['name']}  (id={loc['location_id']})")
     print(sep)
 
-    # Core fields
+    # main fields
     skip = {"location_id", "name", "services", "schedules"}
     for key, value in loc.items():
         if key in skip or value in (None, ""):
@@ -84,7 +84,7 @@ def print_location(loc: dict) -> None:
         label = key.replace("_", " ").title()
         print(f"  {label:<28} {value}")
 
-    # Services
+    # services
     if loc["services"]:
         print(f"\n  Services ({len(loc['services'])}):")
         for svc in loc["services"]:
@@ -94,7 +94,7 @@ def print_location(loc: dict) -> None:
                 if val:
                     print(f"        {field}: {val}")
 
-    # Schedules
+    # hours
     if loc["schedules"]:
         print(f"\n  Schedules ({len(loc['schedules'])}):")
         for s in loc["schedules"]:

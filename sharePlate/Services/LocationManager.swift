@@ -1,6 +1,6 @@
 //
-//  LocationManager.swift
-//  sharePlate
+// locationmanager.swift
+// shareplate
 //
 
 import Foundation
@@ -10,7 +10,7 @@ import MapKit
 @MainActor
 @Observable
 final class LocationManager: NSObject, CLLocationManagerDelegate {
-    /// Downtown Chicago, used as the default when location is unavailable.
+    // downtown chicago used when location is unavailable
     static let chicago = CLLocationCoordinate2D(latitude: 41.8781, longitude: -87.6298)
 
     private let manager = CLLocationManager()
@@ -35,8 +35,7 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         authorizationStatus == .authorizedAlways
     }
 
-    /// Whether it's worth showing the "turn on Always Allow" prompt —
-    /// only once the user has already granted When In Use.
+    // show always allow prompt only after when in use is granted
     var canRequestAlways: Bool {
         authorizationStatus == .authorizedWhenInUse
     }
@@ -49,7 +48,7 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         manager.stopUpdatingLocation()
     }
 
-    /// The coordinate to center maps on: the user's location if known, else Chicago.
+    // map center is user location if known, else chicago
     var mapCenter: CLLocationCoordinate2D {
         userLocation ?? Self.chicago
     }
@@ -61,7 +60,7 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         )
     }
 
-    /// Requests permission when needed; location updates begin in the authorization callback.
+    // requests permission when needed, updates start after auth callback
     func bootstrapIfNeeded() {
         switch authorizationStatus {
         case .notDetermined:
@@ -77,14 +76,14 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         }
     }
 
-    /// Safe to call on foreground — no-ops until the user has granted access.
+    // safe to call on foreground, no ops until access granted
     func resumeIfAuthorized() {
         startUpdatingIfAuthorized()
     }
 
-    /// Prompts to upgrade from "While Using" to "Always" — lets nearby-alert
-    /// notifications keep working (and location stay fresh) while the app
-    /// isn't open. Only meaningful after When In Use was already granted.
+    // asks to upgrade from while using to always
+    // keeps nearby alerts working while app is not open
+    // only meaningful after when in use was granted
     func requestAlwaysAuthorization() {
         manager.requestAlwaysAuthorization()
     }
@@ -97,7 +96,7 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         }
     }
 
-    /// Distance in meters from the user to a coordinate, or nil if unknown.
+    // distance in meters to a coordinate, or nil if unknown
     func distance(to coordinate: CLLocationCoordinate2D) -> CLLocationDistance? {
         guard let user = userLocation else { return nil }
         let from = CLLocation(latitude: user.latitude, longitude: user.longitude)
@@ -105,7 +104,7 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         return from.distance(from: to)
     }
 
-    /// Human-friendly distance string (e.g. "1.2 mi"), or nil if unknown.
+    // friendly distance string, or nil if unknown
     func distanceText(to coordinate: CLLocationCoordinate2D) -> String? {
         guard let meters = distance(to: coordinate) else { return nil }
         let miles = meters / 1609.344
@@ -115,7 +114,7 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         return String(format: "%.1f mi", miles)
     }
 
-    // MARK: - CLLocationManagerDelegate
+    // location manager delegate
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
@@ -137,6 +136,6 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        // Expected when permission is denied or the simulator has no fix — fall back to Chicago.
+        // expected when permission denied or simulator has no fix, falls back to chicago
     }
 }

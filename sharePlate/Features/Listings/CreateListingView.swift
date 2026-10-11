@@ -1,8 +1,8 @@
 //
-//  CreateListingView.swift
-//  sharePlate
+// createlistingview.swift
+// shareplate
 //
-//  Frictionless, mostly tap-based posting flow designed to take under 30s.
+// quick tap based posting flow
 //
 
 import SwiftUI
@@ -15,8 +15,8 @@ struct CreateListingView: View {
     @Environment(LocationManager.self) private var location
     @Environment(\.dismiss) private var dismiss
 
-    /// When set, this post is surplus food from a claimed pantry rather than
-    /// an individual donor — tags the listing and pre-fills its location.
+    // surplus food from a claimed pantry
+    // tags listing and prefills location
     var pantryResource: FoodResource? = nil
 
     @State private var category: FoodCategory?
@@ -150,7 +150,7 @@ struct CreateListingView: View {
         }
     }
 
-    // MARK: - Steps
+    // steps
 
     private func pantryBanner(_ resource: FoodResource) -> some View {
         HStack(spacing: Theme.Spacing.sm) {
@@ -475,7 +475,7 @@ struct CreateListingView: View {
         .background(Theme.Palette.backgroundCream)
     }
 
-    // MARK: - Building blocks
+    // building blocks
 
     private func stepContainer<Content: View>(number: Int, title: LocalizedStringKey, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
@@ -494,7 +494,7 @@ struct CreateListingView: View {
         }
     }
 
-    // MARK: - Actions
+    // actions
 
     private func loadPhoto(from item: PhotosPickerItem?) async {
         guard let item else {
@@ -522,7 +522,7 @@ struct CreateListingView: View {
         photoPreview = UIImage(data: processed)
     }
 
-    /// Downscale large photos so they store efficiently in SwiftData.
+    // shrink photos to store easily
     nonisolated private static func downscaledPhotoData(_ data: Data) -> Data {
         guard let image = UIImage(data: data) else { return data }
         let maxDimension: CGFloat = 1200
@@ -557,7 +557,7 @@ struct CreateListingView: View {
         }
     }
 
-    /// Derives a coarse public area label (typically the city) from the address.
+    // makes a coarse area label from the address
     private func areaLabel(from address: String) -> String {
         let parts = address
             .split(separator: ",")
@@ -676,7 +676,7 @@ struct CreateListingView: View {
     }
 }
 
-// MARK: - Selectable controls
+// selectable controls
 
 private struct ChoiceTile: View {
     let title: String

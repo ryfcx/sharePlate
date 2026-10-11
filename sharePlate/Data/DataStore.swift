@@ -1,10 +1,4 @@
-//
-//  DataStore.swift
-//  sharePlate
-//
-//  Abstraction over persistence so the SwiftData implementation can later be
-//  swapped for a cloud backend (with universal login) without touching views.
-//
+// data store
 
 import Foundation
 
@@ -76,7 +70,7 @@ enum SyncError: LocalizedError {
     }
 }
 
-/// Address + coordinates supplied by the consumer when reserving a drop-off.
+// dropoff address the picker gives when booking
 struct DropOffReservationDetails: Equatable {
     let address: String
     let latitude: Double
@@ -86,9 +80,9 @@ struct DropOffReservationDetails: Equatable {
 @MainActor
 protocol DataStore {
     func seedIfNeeded()
-    /// Expires overdue listings and auto-releases lapsed reservations.
+    // clears old posts and frees old holds
     func runMaintenance()
-    /// Pulls the latest shared listings from Supabase into the local cache.
+    // pulls fresh posts into the local cache
     func syncListings() async
     func syncListings(force: Bool) async
     func syncListing(_ listing: FoodListing) async
@@ -116,7 +110,7 @@ protocol DataStore {
         pantryGCFDLocationID: Int?
     ) async throws -> FoodListing
 
-    // MARK: - Pantry manager
+// pantry manager
 
     func pantryClaims() -> [PantryClaim]
     func myPantryClaim() -> PantryClaim?

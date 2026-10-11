@@ -100,11 +100,17 @@ This file records user-visible features, fixes, database changes, and developer 
 - Show a food listing's booking code only after it is reserved.
 - Turn on All locations immediately, without a confirmation.
 - Spread the 15 permanent Lincoln Park listings across the neighborhood instead of a rectangular grid.
+- Add individual neighbor donations alongside the grocery and restaurant listings.
+- Show each selected filter's locations, with neighbor donations in purple and grocery and restaurant spots in green.
+- Add named Lincoln Park restaurant listings alongside grocery spots and neighbor donations.
 
 ### Fixed
 
 - Keep pantry hour translation on the same system translation sheet used for notes and About.
 - Keep the reserve package picker readable when a listing has many packages.
+- Make All locations zoom the map out to every matching place again.
+- Apply Drop off and Pickup even when pantry or store filters are also selected.
+- Clear the extra map pins when All locations is turned off.
 
 ### Added
 
@@ -118,3 +124,10 @@ This file records user-visible features, fixes, database changes, and developer 
 ### Removed
 
 - Remove the green in-app notice bar so alerts only appear as Apple notifications.
+
+## 2026-10-06
+
+### Fixed
+
+- Show a booking code on food you post, before anyone reserves it.
+- Leave the listing screen after a donor marks the food as picked up.

@@ -1,9 +1,4 @@
-//
-//  RemotePantryClaim.swift
-//  sharePlate
-//
-//  Codable mirror of the Supabase `pantry_claims` table.
-//
+// remote pantry claim
 
 import Foundation
 

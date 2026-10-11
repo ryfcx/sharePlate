@@ -1,10 +1,10 @@
 //
-//  TranslatableText.swift
-//  sharePlate
+//  translatabletext.swift
+//  shareplate
 //
-//  On-device translation for pantry About text, hours, and neighbor-written notes.
-//  The system translation sheet is used so this works in English, Spanish,
-//  or the device language. It does not depend on the in-app language being Spanish.
+//  on device translation for pantry about text hours and notes
+//  uses the system sheet so it works in english spanish
+//  or the device language
 //
 
 import SwiftUI
@@ -12,9 +12,9 @@ import Translation
 
 struct TranslatableText: View {
     enum Style {
-        /// Text with a Translate / Show original button underneath.
+        // text with translate button underneath
         case labeled
-        /// Text with a small translate icon beside it, for tight rows.
+        // text with small translate icon for tight rows
         case icon
     }
 
@@ -34,7 +34,7 @@ struct TranslatableText: View {
         return translatedText != text
     }
 
-    /// Skip codes, phone numbers, and placeholders that have no words.
+    // skips codes and phone numbers with no words
     private var canTranslate: Bool {
         text.unicodeScalars.contains { CharacterSet.letters.contains($0) }
     }

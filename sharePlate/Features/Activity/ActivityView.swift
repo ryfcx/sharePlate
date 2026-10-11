@@ -1,6 +1,6 @@
 //
-//  ActivityView.swift
-//  sharePlate
+// activityview.swift
+// shareplate
 //
 
 import SwiftUI
@@ -79,7 +79,7 @@ struct ActivityView: View {
         }
     }
 
-    // MARK: - Screen E
+    // bookings screen
 
     private var bookDetailsSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {

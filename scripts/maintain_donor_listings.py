@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Run the Supabase donor-listing job once and print how many are live.
+"""run the donor listing job once and print how many are live.
 
-The job itself is scheduled inside the database and runs once an hour.
-This script only calls that same function. It keeps the 15 Lincoln Park
+the job itself runs inside the database once an hour.
+this script only calls that same function. it keeps the 15 lincoln park
 spots and does not create a second pool.
 """
 

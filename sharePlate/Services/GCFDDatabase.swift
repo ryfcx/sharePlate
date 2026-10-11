@@ -1,22 +1,13 @@
-//
-//  GCFDDatabase.swift
-//  sharePlate
-//
-//  Reads the bundled Greater Chicago Food Depository SQLite database
-//  (`gcfd_food.db`, produced by foodAPI/gcfd_food_sync.py) and maps each
-//  active location + its weekly schedule into a `FoodResource`.
-//
+// gcfd database
 
 import Foundation
 import SQLite3
 import UIKit
 
 enum GCFDDatabase {
-    /// Parsed location ready to be turned into a `FoodResource`.
+    // spot ready to become a food card
     struct Location {
-        /// GCFD's own stable id for this location — survives daily dataset
-        /// resyncs, so pantry claims can be keyed off it instead of a local
-        /// row identity that gets wiped and recreated every re-import.
+        // stable id that lives through data refreshes
         let locationID: Int
         let name: String
         let address: String
@@ -33,9 +24,7 @@ enum GCFDDatabase {
     private static let resourceName = "gcfd_food"
     private static let resourceExtension = "db"
 
-    /// The database the app reads from: a downloaded copy in Application Support
-    /// if one exists (the seam for future over-the-air updates), otherwise the
-    /// database bundled with the app.
+    // uses the downloaded copy if there is one, else the built in one
     static var activeDatabaseURL: URL? {
         let fileManager = FileManager.default
         if let support = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
@@ -47,8 +36,7 @@ enum GCFDDatabase {
         return Bundle.main.url(forResource: resourceName, withExtension: resourceExtension)
     }
 
-    /// Loads every active, geocoded location from the active database.
-    /// Returns an empty array if the database is missing or unreadable.
+    // loads every live spot with a map pin
     static func loadLocations() -> [Location] {
         guard let url = activeDatabaseURL else { return [] }
 
@@ -63,9 +51,7 @@ enum GCFDDatabase {
         return loadLocations(db: db, serviceHoursByLocation: serviceHoursByLocation)
     }
 
-    /// A content signature for the active dataset, used to decide when the app
-    /// must re-import. Changes whenever locations are added/removed or any row's
-    /// `last_updated` changes. Returns nil if the database is unreadable.
+    // fingerprint to tell when we need to reimport
     static func datasetVersion() -> String? {
         guard let url = activeDatabaseURL else { return nil }
 
@@ -87,7 +73,7 @@ enum GCFDDatabase {
         return "\(count):\(maxUpdated)"
     }
 
-    // MARK: - Service schedules
+// service hours
 
     private struct ServiceAccumulator {
         var intervals: [OpeningInterval] = []
@@ -175,7 +161,7 @@ enum GCFDDatabase {
         return result
     }
 
-    // MARK: - Locations
+// spots
 
     private static func loadLocations(db: OpaquePointer, serviceHoursByLocation: [Int: [ServiceHours]]) -> [Location] {
         let sql = """
@@ -234,7 +220,7 @@ enum GCFDDatabase {
         return locations
     }
 
-    // MARK: - Mapping helpers
+// little mapping helpers
 
     private static func resourceType(programs: String) -> ResourceType {
         let p = programs.lowercased()
@@ -295,8 +281,7 @@ enum GCFDDatabase {
         return String(localized: "Food assistance location.")
     }
 
-    /// AccessFood sometimes returns `about_us` as an HTML fragment. Convert it
-    /// to readable text here as a safeguard for older or downloaded databases.
+    // cleans up messy about text with html in it
     private static func plainText(fromHTML html: String) -> String {
         let trimmed = html.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "" }
@@ -327,8 +312,7 @@ enum GCFDDatabase {
             .joined(separator: "\n")
     }
 
-    /// Parses minutes-since-midnight from an ISO timestamp like
-    /// `1900-01-01T10:00:00`.
+    // turns a time stamp into minutes past midnight
     private static func minutes(fromISO iso: String) -> Int? {
         guard let tRange = iso.range(of: "T") else { return nil }
         let time = iso[tRange.upperBound...]

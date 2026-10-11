@@ -1,9 +1,9 @@
 //
-//  HandoffLiveUpdatesService.swift
-//  sharePlate
+// handoffliveupdatesservice.swift
+// shareplate
 //
-//  Supabase Realtime subscriptions for active handoffs — instant listing
-//  updates (instructions, status) without polling.
+// realtime subscriptions for active handoffs
+// instant listing updates without polling
 //
 
 import Foundation
@@ -59,7 +59,7 @@ final class HandoffLiveUpdatesService {
         subscribedListingIDs = desired
     }
 
-    // MARK: - Private
+    // private helpers
 
     private func subscribe(to listingID: UUID) async {
         let client = SupabaseManager.client

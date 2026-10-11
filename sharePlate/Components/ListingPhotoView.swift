@@ -1,8 +1,8 @@
 //
-//  ListingPhotoView.swift
-//  sharePlate
+//  listingphotoview.swift
+//  shareplate
 //
-//  Shows a listing photo from local cache or Supabase Storage.
+//  shows listing photo from cache or storage
 //
 
 import SwiftUI

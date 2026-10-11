@@ -1,8 +1,8 @@
 //
-//  AppAppearance.swift
-//  sharePlate
+//  appappearance.swift
+//  shareplate
 //
-//  Opaque, flat UIKit chrome — no translucency or glass effects.
+//  opaque flat interface with no translucency
 //
 
 import UIKit
@@ -15,7 +15,7 @@ enum AppAppearance {
         let green = UIColor(Theme.Palette.primaryGreen)
         let border = UIColor(Theme.Palette.hairline)
 
-        // Navigation bar — solid cream, thin bottom line
+        // nav bar with solid cream and thin line
         let nav = UINavigationBarAppearance()
         nav.configureWithOpaqueBackground()
         nav.backgroundColor = cream

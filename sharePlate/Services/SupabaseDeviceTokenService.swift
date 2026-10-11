@@ -1,9 +1,9 @@
 //
-//  SupabaseDeviceTokenService.swift
-//  sharePlate
+// supabasedevicetokenservice.swift
+// shareplate
 //
-//  Stores APNs device tokens for push delivery. Run `supabase/device_tokens.sql`
-//  in the Supabase SQL editor before first use.
+// stores push device tokens for delivery
+// run device tokens sql in supabase sql editor first
 //
 
 import Foundation

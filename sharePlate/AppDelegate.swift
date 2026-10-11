@@ -1,6 +1,6 @@
 //
-//  AppDelegate.swift
-//  sharePlate
+// appdelegate.swift
+// shareplate
 //
 
 import UIKit
@@ -19,7 +19,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
-        // Expected on Simulator without a push-enabled provisioning profile.
+        // expected on simulator without push profile
         #if DEBUG
         print("APNs registration failed: \(error.localizedDescription)")
         #endif
