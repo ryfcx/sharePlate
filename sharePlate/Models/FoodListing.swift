@@ -26,6 +26,8 @@ final class FoodListing {
     var pickupNotes: String?
     var contactInstructions: String?
     var statusRaw: String
+    var moderationStatusRaw: String = "pending"
+    var moderationReason: String?
     var createdAt: Date
     // online row id when synced
     var remoteID: String?
@@ -82,7 +84,9 @@ final class FoodListing {
         maxPackagesPerBooking: Int = 0,
         packagesRemaining: Int = 0,
         pantryGCFDLocationID: Int? = nil,
-        isPermanent: Bool = false
+        isPermanent: Bool = false,
+        moderationStatus: String = "pending",
+        moderationReason: String? = nil
     ) {
         self.title = title
         self.details = details
@@ -112,6 +116,8 @@ final class FoodListing {
         self.packagesRemaining = packagesRemaining
         self.pantryGCFDLocationID = pantryGCFDLocationID
         self.isPermanent = isPermanent
+        self.moderationStatusRaw = moderationStatus
+        self.moderationReason = moderationReason
         if packageCount == 0 {
             syncPackageFieldsFromDetails()
         }
@@ -148,6 +154,15 @@ final class FoodListing {
     }
 
     var isPantryListing: Bool { pantryGCFDLocationID != nil }
+
+    var isApprovedForSharing: Bool { moderationStatusRaw == "approved" }
+
+    var moderationLabel: String {
+        if isExpired, moderationStatusRaw == "pending" { return String(localized: "Expired") }
+        return moderationStatusRaw == "rejected"
+            ? String(localized: "Not approved")
+            : String(localized: "Awaiting review")
+    }
 
     var dropOffRadiusLabel: String? {
         guard isDropOff, let meters = dropOffRadiusMeters else { return nil }

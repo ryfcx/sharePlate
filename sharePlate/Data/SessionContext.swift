@@ -5,7 +5,16 @@ import SwiftUI
 @Observable
 final class SessionContext {
     // backup id used before login is ready
-    let deviceID: String
+    private(set) var deviceID: String
+    private let defaults: UserDefaults
+    var isDeletingData = false
+    var deletionPending: Bool {
+        didSet { defaults.set(deletionPending, forKey: AccountDeletionStorage.pendingKey) }
+    }
+    var hasDeletedData: Bool {
+        didSet { defaults.set(hasDeletedData, forKey: AccountDeletionStorage.deletedKey) }
+    }
+    var allowsDataAccess: Bool { !isDeletingData && !deletionPending && !hasDeletedData }
 
     // filled in once quiet login finishes
     var currentUserID: String?
@@ -17,19 +26,35 @@ final class SessionContext {
 
     // name from settings, neighbor to start
     var displayName: String {
-        didSet { UserDefaults.standard.set(displayName, forKey: displayNameKey) }
+        didSet { defaults.set(displayName, forKey: displayNameKey) }
     }
 
-    init() {
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        let deleted = defaults.bool(forKey: AccountDeletionStorage.deletedKey)
+        let recovered = !deleted && defaults === UserDefaults.standard && (try? AccountDeletionStorage.load()) != nil
+        deletionPending = !deleted && (defaults.bool(forKey: AccountDeletionStorage.pendingKey) || recovered)
+        hasDeletedData = deleted
+        if recovered {
+            defaults.set(true, forKey: AccountDeletionStorage.pendingKey)
+        }
+        if deleted { defaults.set(false, forKey: AccountDeletionStorage.pendingKey) }
         let key = "sharePlate.deviceID"
-        if let existing = UserDefaults.standard.string(forKey: key) {
+        if let existing = defaults.string(forKey: key) {
             deviceID = existing
         } else {
             let new = UUID().uuidString
-            UserDefaults.standard.set(new, forKey: key)
+            defaults.set(new, forKey: key)
             deviceID = new
         }
-        displayName = UserDefaults.standard.string(forKey: displayNameKey) ?? String(localized: "Neighbor")
+        displayName = defaults.string(forKey: displayNameKey) ?? String(localized: "Neighbor")
+    }
+
+    func resetPersonalIdentity() {
+        currentUserID = nil
+        displayName = String(localized: "Neighbor")
+        deviceID = UUID().uuidString
+        defaults.set(deviceID, forKey: "sharePlate.deviceID")
     }
 
     // matches ids without caring about caps

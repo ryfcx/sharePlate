@@ -130,5 +130,5 @@ protocol DataStore {
     func publishCoordination(_ coordination: ReservationCoordination, for listing: FoodListing) async throws
     func cancelReservation(_ listing: FoodListing) async throws
     func delete(_ listing: FoodListing)
-    func report(_ listing: FoodListing, reason: ReportReason, notes: String?)
+    func report(_ listing: FoodListing, reason: ReportReason, notes: String?) async throws
 }

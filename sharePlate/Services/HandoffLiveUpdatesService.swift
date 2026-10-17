@@ -42,6 +42,14 @@ final class HandoffLiveUpdatesService {
         session = nil
     }
 
+    func stopAndWait() async {
+        refreshTask?.cancel()
+        refreshTask = nil
+        store = nil
+        session = nil
+        await unsubscribeAll()
+    }
+
     func refreshSubscriptions() async {
         guard let store, let session, session.currentUserID != nil else {
             await unsubscribeAll()
@@ -62,6 +70,7 @@ final class HandoffLiveUpdatesService {
     // private helpers
 
     private func subscribe(to listingID: UUID) async {
+        let owner = session?.identity
         let client = SupabaseManager.client
         let channel = client.realtimeV2.channel("handoff:\(listingID.uuidString)")
 
@@ -72,6 +81,7 @@ final class HandoffLiveUpdatesService {
             filter: .eq("id", value: listingID)
         ) { update in
             Task { @MainActor in
+                guard HandoffLiveUpdatesService.shared.session?.identity == owner else { return }
                 guard let store = HandoffLiveUpdatesService.shared.store else { return }
                 if let remote = try? update.decodeRecord(as: RemoteListing.self, decoder: SupabaseRealtimeJSON.decoder) {
                     store.applyRemoteListing(remote)

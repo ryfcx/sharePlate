@@ -10,6 +10,7 @@ import Translation
 
 struct ResourceDetailView: View {
     @Environment(LocationManager.self) private var location
+    @Environment(LocalDataStore.self) private var store
     @Query(sort: \FoodListing.createdAt, order: .reverse) private var allListings: [FoodListing]
     let resource: FoodResource
 
@@ -18,7 +19,8 @@ struct ResourceDetailView: View {
     private var pantryListings: [FoodListing] {
         guard let locationID = resource.gcfdLocationID else { return [] }
         return allListings.filter {
-            $0.pantryGCFDLocationID == locationID && !$0.isPermanent && $0.effectiveStatus == .available
+            $0.pantryGCFDLocationID == locationID && !$0.isPermanent && $0.isApprovedForSharing && $0.effectiveStatus == .available
+                && !store.isUserBlocked($0.postedByDeviceID)
         }
     }
 

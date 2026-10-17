@@ -30,6 +30,21 @@ struct SettingsView: View {
                     locationSection
                     pantrySection
                     languageSection
+                    NavigationLink {
+                        BlockedUsersView()
+                    } label: {
+                        Label("Blocked users", systemImage: "person.crop.circle.badge.xmark")
+                            .font(AppFont.body)
+                            .foregroundStyle(Theme.Palette.primaryText)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .cardStyle()
+                    }
+                    SupportLinksSection(
+                        privacyPolicyURL: AppLinks.privacyPolicy,
+                        supportURL: AppLinks.support,
+                        termsURL: AppLinks.terms
+                    )
+                    DeleteDataSection()
                 }
                 .padding(Theme.Spacing.lg)
             }

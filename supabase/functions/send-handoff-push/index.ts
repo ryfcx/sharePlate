@@ -11,6 +11,7 @@ type ListingRow = {
   posted_by: string;
   claimed_by: string | null;
   contact_instructions: string | null;
+  moderation_status: string;
 };
 
 type MessageRow = {
@@ -97,17 +98,23 @@ async function notificationsForMessage(row: MessageRow): Promise<PushNote[]> {
 
   const { data: listing } = await supabase
     .from("listings")
-    .select("id, title, posted_by, claimed_by")
+    .select("id, title, posted_by, claimed_by, moderation_status")
     .eq("id", row.listing_id)
     .maybeSingle();
 
-  if (!listing) return [];
+  if (!listing || listing.moderation_status !== "approved") return [];
 
   const postedBy = listing.posted_by as string;
   const claimedBy = listing.claimed_by as string | null;
   const recipient = row.sender_id === postedBy ? claimedBy : postedBy;
 
   if (!recipient || recipient === row.sender_id) return [];
+
+  const { data: blocked, error: blockError } = await supabase.rpc("users_are_blocked", {
+    first_user: row.sender_id,
+    second_user: recipient,
+  });
+  if (blockError || blocked !== false) return [];
 
   return [{
     recipientUserID: recipient,
@@ -131,6 +138,7 @@ function notificationsForListingUpdate(
   record: ListingRow,
   old: ListingRow,
 ): PushNote[] {
+  if (record.moderation_status !== "approved") return [];
   const notes: PushNote[] = [];
   const title = record.title ?? "Food";
   const listingID = record.id;

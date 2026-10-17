@@ -59,10 +59,12 @@ struct HomeMapView: View {
 
     private var listingsCatalogToken: Int {
         var hasher = Hasher()
+        for user in store.blockedUsers { hasher.combine(user.id) }
         hasher.combine(listings.count)
         for listing in listings {
             hasher.combine(listing.remoteID)
             hasher.combine(listing.statusRaw)
+            hasher.combine(listing.moderationStatusRaw)
         }
         return hasher.finalize()
     }
@@ -120,6 +122,13 @@ struct HomeMapView: View {
                 Task { await openPendingHandoffIfNeeded() }
                 Task { await NearbyAlertService.refreshPantryOpenSchedule(resources: resources, near: location.mapCenter) }
             }
+            .task {
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(60))
+                    guard !Task.isCancelled else { return }
+                    refreshLocationCaches(forceResort: false)
+                }
+            }
             .onChange(of: notice.pendingHandoffListingRemoteID) { _, _ in
                 Task { await openPendingHandoffIfNeeded() }
             }
@@ -140,7 +149,7 @@ struct HomeMapView: View {
             }
             .onChange(of: listingsCatalogToken) { _, _ in
                 refreshLocationCaches(forceResort: false, listingsOnly: true)
-                Task { await NearbyAlertService.checkForNewNearbyListings(listings, near: location.mapCenter, excludingDeviceID: session.identity) }
+                Task { await NearbyAlertService.checkForNewNearbyListings(listings.filter { !store.isUserBlocked($0.postedByDeviceID) }, near: location.mapCenter, excludingDeviceID: session.identity) }
             }
             .onChange(of: resourcesBrowseToken) { _, _ in
                 refreshLocationCaches(forceResort: false, resourcesOnly: true)
@@ -199,7 +208,7 @@ struct HomeMapView: View {
 
         let openOnly = MapFilterLogic.openNowApplies(showOpenOnly: showOpenOnly, showAllLocations: showAllLocations)
             && timeWindow != .tomorrow
-        let applyNearRadius = MapBrowseLogic.appliesNearRadius(timeWindow) && !showAllLocations
+        let applyNearRadius = MapBrowseLogic.appliesNearRadius(timeWindow) && !showAllLocations && !openOnly
         let query = debouncedSearchText.trimmingCharacters(in: .whitespaces).lowercased()
         let showResources = MapFilterLogic.includesResources(selected: selectedFilters)
         let showListings = MapFilterLogic.includesListings(selected: selectedFilters)
@@ -210,10 +219,11 @@ struct HomeMapView: View {
         if refreshResources {
             filteredR = resources.filter { resource in
                 if selectedFilters.isEmpty || !resource.matches(selectedFilters) { return false }
-                if !MapBrowseLogic.resourceMatches(resource, window: timeWindow) { return false }
                 if openOnly {
                     let status = resourceOpenStatus(resource)
                     if status == .closed { return false }
+                } else if !MapBrowseLogic.resourceMatches(resource, window: timeWindow) {
+                    return false
                 }
                 if !query.isEmpty {
                     return resource.name.lowercased().contains(query)
@@ -228,7 +238,10 @@ struct HomeMapView: View {
         var filteredL = nearbyListings
         if refreshListings {
             filteredL = listings.filter { listing in
-                guard MapBrowseLogic.listingMatchesWindow(listing, window: timeWindow) else { return false }
+                guard listing.isApprovedForSharing else { return false }
+                guard !store.isUserBlocked(listing.postedByDeviceID) else { return false }
+                let listingWindow: MapTimeWindow = openOnly ? .near : timeWindow
+                guard MapBrowseLogic.listingMatchesWindow(listing, window: listingWindow) else { return false }
                 if openOnly, listing.isPermanent, permanentStoreStatus(listing) == .closed { return false }
                 if selectedFilters.isEmpty || !listing.matches(selectedFilters) { return false }
                 if !query.isEmpty {
@@ -255,7 +268,7 @@ struct HomeMapView: View {
         let sortedR = sortedByDistance(scopedR) { $0.coordinate }
         let sortedL = sortedByDistance(scopedL) { $0.coordinate }
 
-        if showAllLocations {
+        if showAllLocations || openOnly {
             mapResources = sortedR
             mapListings = sortedL
             nearbyResources = sortedR

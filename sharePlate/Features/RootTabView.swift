@@ -58,10 +58,13 @@ struct RootTabView: View {
             withoutAnimation { loadedTabs.insert(tab) }
         }
         .task {
+            guard session.allowsDataAccess else { return }
             store.seedIfNeeded()
             store.runMaintenance()
+            await store.syncBlockedUsers()
             await store.syncListings(force: true)
             await store.syncPantryClaims()
+            guard session.allowsDataAccess else { return }
             HandoffLiveUpdatesService.shared.start(store: store, session: session)
             ListingCatalogSyncService.shared.start(store: store, session: session, location: location)
             await PushNotificationService.shared.requestAuthorizationAndRegister()
@@ -76,16 +79,21 @@ struct RootTabView: View {
             }
         }
         .onReceive(maintenanceTimer) { _ in
-            guard scenePhase == .active else { return }
+            guard scenePhase == .active, session.allowsDataAccess else { return }
             store.runMaintenance()
-            Task { await store.syncListings() }
+            Task {
+                await store.syncBlockedUsers()
+                await store.syncListings()
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
+                guard session.allowsDataAccess else { return }
                 location.resumeIfAuthorized()
                 store.runMaintenance()
                 Task {
+                    await store.syncBlockedUsers()
                     await store.syncListings(force: true)
                     await store.syncPantryClaims()
                     await HandoffLiveUpdatesService.shared.refreshSubscriptions()

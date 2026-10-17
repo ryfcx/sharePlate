@@ -22,7 +22,8 @@ struct ListingCard: View {
                         .font(AppFont.headline)
                         .foregroundStyle(Theme.Palette.primaryText)
                         .lineLimit(1)
-                    if showsBookingCode, listing.revealsBookingCode || session.matches(listing.postedByDeviceID) {
+                    if listing.isApprovedForSharing, showsBookingCode,
+                       listing.revealsBookingCode || session.matches(listing.postedByDeviceID) {
                         Text(listing.bookingCode)
                             .font(AppFont.captionBold)
                             .monospacedDigit()
@@ -60,7 +61,12 @@ struct ListingCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .layoutPriority(1)
 
-            if listing.effectiveStatus != .available {
+            if !listing.isApprovedForSharing {
+                Text(listing.moderationLabel)
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Theme.Palette.mutedText)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if listing.effectiveStatus != .available {
                 StatusBadge(status: listing.effectiveStatus)
                     .fixedSize()
             }

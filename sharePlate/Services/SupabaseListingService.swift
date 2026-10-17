@@ -33,13 +33,22 @@ enum SupabaseListingService {
     }
 
     static func create(_ payload: RemoteListingInsert) async throws -> RemoteListing {
-        try await client
-            .from(table)
-            .insert(payload)
-            .select()
-            .single()
-            .execute()
-            .value
+        do {
+            return try await client
+                .from(table)
+                .insert(payload)
+                .select()
+                .single()
+                .execute()
+                .value
+        } catch let error as PostgrestError {
+            switch error.message {
+            case "moderation_rate_limited": throw ContentSubmissionError.rateLimited
+            case "moderation_content_too_large": throw ContentSubmissionError.contentTooLarge
+            case "moderation_photo_required": throw ContentSubmissionError.photoRequired
+            default: throw error
+            }
+        }
     }
 
     static func update(id: UUID, patch: RemoteListingUpdate) async throws {

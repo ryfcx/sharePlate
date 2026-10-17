@@ -90,6 +90,13 @@ enum NearbyAlertService {
 
     // new nearby listings
 
+    static func removeListingAlerts(for listings: [FoodListing]) {
+        let ids = listings.compactMap { $0.remoteID.map { "new-listing-\($0)" } }
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ids)
+        center.removeDeliveredNotifications(withIdentifiers: ids)
+    }
+
     // checks recent listings for nearby ones not posted by this device
     // sends a notification for each match
     // call when local catalog changes while app is running
@@ -105,7 +112,7 @@ enum NearbyAlertService {
         var notifiedIDs = Set(UserDefaults.standard.stringArray(forKey: notifiedListingIDsKey) ?? [])
 
         for listing in listings {
-            guard listing.effectiveStatus == .available else { continue }
+            guard listing.isApprovedForSharing, listing.effectiveStatus == .available else { continue }
             guard let remoteID = listing.remoteID, !notifiedIDs.contains(remoteID) else { continue }
             guard listing.postedByDeviceID.caseInsensitiveCompare(excludingDeviceID) != .orderedSame else { continue }
 

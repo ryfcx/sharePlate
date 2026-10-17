@@ -2,6 +2,26 @@
 
 This file records user-visible features, fixes, database changes, and developer tooling updates.
 
+## 2026-10-17
+
+### Changed
+
+- Publish ordinary food posts immediately; hold only posts with suspicious text for review. Reported posts remain in the moderation queue.
+- Update the posting screen and Spanish text to explain when a post needs review.
+- Show every currently open matching place in Open now, beyond the nearby radius and pin limit, and refresh its hours while the map stays open.
+
+## 2026-10-16
+
+### Changed
+
+- Add private review of listing text and photos, a protected moderation queue with approve/reject actions, live removal signals, upload limits, and English/Spanish review status screens. New posts require manual approval before appearing publicly.
+- Add Delete my data in Settings, with protected server cleanup, reservation release, secure retries, local data removal, and an explicit Start fresh action after deletion.
+- Send listing reports to a private Supabase review queue, with reasons, optional notes, receipt confirmation, retry handling, and server limits on duplicate and repeated submissions.
+- Add privacy policy, SharePlate support, and terms links to Settings, with Spanish labels.
+- Add user blocking to listings and active handoffs, with unblock controls in Settings and server protection for reservations and messages.
+- Restore pantry hours from the GCFD schedule and refresh saved app data.
+- Remove the automatic fake donor listing job and add a Supabase cleanup script for demo listings.
+
 ## 2026-09-07
 
 ### Added

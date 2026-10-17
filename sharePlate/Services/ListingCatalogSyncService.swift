@@ -44,6 +44,11 @@ final class ListingCatalogSyncService {
         }
     }
 
+    func stopAndWait() async {
+        stop()
+        await workChain.value
+    }
+
     private func enqueue(_ work: @escaping () async -> Void) {
         let previous = workChain
         workChain = Task {
@@ -115,9 +120,29 @@ final class ListingCatalogSyncService {
             }
         }
 
+        let subscribingIdentity = session?.identity
+        let visibilityInsertSub = channel.onPostgresChange(
+            InsertAction.self, schema: "public", table: "listing_visibility"
+        ) { change in
+            guard let row = try? change.decodeRecord(as: ListingVisibility.self, decoder: SupabaseRealtimeJSON.decoder) else { return }
+            Task { @MainActor in
+                await ListingCatalogSyncService.shared.applyVisibility(row, identity: subscribingIdentity)
+            }
+        }
+        let visibilityUpdateSub = channel.onPostgresChange(
+            UpdateAction.self, schema: "public", table: "listing_visibility"
+        ) { change in
+            guard let row = try? change.decodeRecord(as: ListingVisibility.self, decoder: SupabaseRealtimeJSON.decoder) else { return }
+            Task { @MainActor in
+                await ListingCatalogSyncService.shared.applyVisibility(row, identity: subscribingIdentity)
+            }
+        }
+
         subscriptions.append(insertSub)
         subscriptions.append(updateSub)
         subscriptions.append(deleteSub)
+        subscriptions.append(visibilityInsertSub)
+        subscriptions.append(visibilityUpdateSub)
 
         do {
             try await channel.subscribeWithError()
@@ -144,11 +169,10 @@ final class ListingCatalogSyncService {
         notifyIfNew: Bool
     ) async {
         guard let store else { return }
+        let owner = session?.identity
 
         let remote: RemoteListing
-        if let decoded {
-            remote = decoded
-        } else if let recordID {
+        if let recordID = recordID ?? decoded?.id {
             do {
                 remote = try await SupabaseListingService.fetch(id: recordID)
             } catch {
@@ -158,6 +182,7 @@ final class ListingCatalogSyncService {
             return
         }
 
+        guard session?.identity == owner, session?.allowsDataAccess == true else { return }
         let existed = store.listings().contains { $0.remoteID == remote.id.uuidString }
         store.applyRemoteListing(remote)
 
@@ -168,13 +193,38 @@ final class ListingCatalogSyncService {
 
     private func notifyConsumers(of remote: RemoteListing) async {
         guard let store, let session, let location else { return }
+        guard remote.moderationStatus == "approved" else { return }
         guard ListingStatus.from(raw: remote.status) == .available else { return }
         guard let listing = store.listings().first(where: { $0.remoteID == remote.id.uuidString }) else { return }
+        guard !store.isUserBlocked(listing.postedByDeviceID) else { return }
         await NearbyAlertService.checkForNewNearbyListings(
             [listing],
             near: location.mapCenter,
             excludingDeviceID: session.identity
         )
+    }
+
+    private func applyVisibility(_ row: ListingVisibility, identity: String?) async {
+        guard session?.allowsDataAccess == true, session?.identity == identity, let store else { return }
+        if row.status != "approved" {
+            let cached = store.listings().first { $0.remoteID == row.listingID.uuidString }
+            guard let cached else { return }
+            store.applyModerationChange(remoteID: row.listingID.uuidString, status: row.status)
+            guard session?.matches(cached.postedByDeviceID) == true
+                    || session?.matches(cached.claimedByDeviceID) == true else { return }
+        }
+        // fetch only if rls allows this account to see the content
+        await applyIncomingListing(decoded: nil, recordID: row.listingID, notifyIfNew: row.status == "approved")
+    }
+}
+
+private nonisolated struct ListingVisibility: Decodable, Sendable {
+    let listingID: UUID
+    let status: String
+
+    enum CodingKeys: String, CodingKey {
+        case listingID = "listing_id"
+        case status = "moderation_status"
     }
 }
 

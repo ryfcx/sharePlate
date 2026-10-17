@@ -162,7 +162,7 @@ struct ActivityView: View {
             .filter { listing in
                 let involved = session.matches(listing.postedByDeviceID)
                     || session.matches(listing.claimedByDeviceID)
-                guard involved else { return false }
+                guard involved, listing.isApprovedForSharing else { return false }
                 let status = listing.effectiveStatus
                 return status == .reserved || status == .readyForPickup
             }

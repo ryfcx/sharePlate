@@ -21,13 +21,6 @@ final class FoodResource {
     // gcfd id for this spot, used for claims
     var gcfdLocationID: Int?
 
-    // these spots always show as open
-    static let alwaysOpenLocationIDs: Set<Int> = [
-        823, // harvest hub lincoln park, 2145 n halsted st
-        20947,  // care for friends, 530 w fullerton pkwy
-        820 // st teresa of avila parish, 1950 n kenmore ave
-    ]
-
 // pantry manager overlay
     var managedByUserID: String?
     var isTemporarilyClosed: Bool = false
@@ -89,16 +82,12 @@ final class FoodResource {
 
     var isOpenNow: Bool? { isOpen() }
 
-    // schedule saved on every import, stays open
+    // preserve the source schedule as imported
     static func importedSchedule(
-        locationID: Int,
         hours: String,
         intervals: [OpeningInterval],
         serviceHours: [ServiceHours]
     ) -> (hours: String, intervals: [OpeningInterval], serviceHours: [ServiceHours]) {
-        guard alwaysOpenLocationIDs.contains(locationID) else {
-            return (hours, intervals, serviceHours)
-        }
-        return ("Open 24 Hours", [], [])
+        (hours, intervals, serviceHours)
     }
 }

@@ -10,11 +10,14 @@ import SwiftUI
 
 struct AppRootView: View {
     @Environment(SupabaseAuthService.self) private var auth
+    @Environment(SessionContext.self) private var session
     @State private var showSplash = true
 
     var body: some View {
         ZStack {
-            if auth.isReady, !showSplash {
+            if session.hasDeletedData || session.deletionPending {
+                AccountDataDeletionView()
+            } else if auth.isReady, !showSplash {
                 RootTabView()
             } else {
                 SplashView()

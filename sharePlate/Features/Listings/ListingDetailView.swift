@@ -17,7 +17,6 @@ struct ListingDetailView: View {
     @State private var showDropOffReserve = false
     @State private var reserveError: String?
     @State private var isReserving = false
-    @State private var showReport = false
 
     var body: some View {
         ScrollView {
@@ -58,15 +57,6 @@ struct ListingDetailView: View {
         .screenBackground()
         .navigationTitle("Food Listing")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showReport = true
-                } label: {
-                    Image(systemName: "flag")
-                }
-            }
-        }
         .alert(listing.isDropOff ? "Reserve this drop off?" : "Reserve this pickup?", isPresented: $showReserveConfirm) {
             Button("Reserve") { reserve(packageCount: 1) }
             Button("Cancel", role: .cancel) {}
@@ -98,14 +88,6 @@ struct ListingDetailView: View {
             PackageReserveSheet(listing: listing) { packageCount in
                 try await store.reserve(listing, packageCount: packageCount, dropOff: nil)
             }
-        }
-        .confirmationDialog("Report this listing", isPresented: $showReport, titleVisibility: .visible) {
-            ForEach(ReportReason.allCases) { reason in
-                Button(reason.displayName, role: reason == .inappropriate ? .destructive : nil) {
-                    store.report(listing, reason: reason, notes: nil)
-                }
-            }
-            Button("Cancel", role: .cancel) {}
         }
     }
 

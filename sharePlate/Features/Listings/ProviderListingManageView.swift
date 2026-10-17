@@ -30,7 +30,7 @@ struct ProviderListingManageView: View {
 
                 statusAndCountdown
 
-                if !listing.isPermanent {
+                if listing.isApprovedForSharing, !listing.isPermanent {
                     BookingCodeCard(
                         code: listing.bookingCode,
                         caption: "Your booking code. Neighbors see it after they reserve."
@@ -48,7 +48,9 @@ struct ProviderListingManageView: View {
                         .cardStyle()
                 }
 
-                actionsCard
+                if listing.isApprovedForSharing {
+                    actionsCard
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Theme.Spacing.lg)
@@ -60,20 +62,46 @@ struct ProviderListingManageView: View {
     }
 
     private var statusAndCountdown: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: Theme.Spacing.sm) {
-                StatusBadge(status: listing.effectiveStatus)
-                CountdownText(deadline: listing.pickupDeadline, live: true)
-                    .font(AppFont.caption)
-            }
+        Group {
+            if !listing.isApprovedForSharing {
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                    Text(listing.moderationLabel).font(AppFont.headline)
+                    Text(moderationExplanation)
+                        .font(AppFont.body)
+                    if let reason = listing.moderationReason, !reason.isEmpty {
+                        TranslatableText(text: reason, font: AppFont.body, color: Theme.Palette.primaryText)
+                    }
+                    Link("Contact support", destination: AppLinks.support)
+                        .frame(minHeight: 44)
+                }
+                .cardStyle()
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        StatusBadge(status: listing.effectiveStatus)
+                        CountdownText(deadline: listing.pickupDeadline, live: true)
+                            .font(AppFont.caption)
+                    }
 
-            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                StatusBadge(status: listing.effectiveStatus)
-                CountdownText(deadline: listing.pickupDeadline, live: true)
-                    .font(AppFont.caption)
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        StatusBadge(status: listing.effectiveStatus)
+                        CountdownText(deadline: listing.pickupDeadline, live: true)
+                            .font(AppFont.caption)
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var moderationExplanation: String {
+        if listing.moderationStatusRaw == "rejected" {
+            return String(localized: "This listing cannot be reserved. Contact support if you need help.")
+        }
+        if listing.isExpired {
+            return String(localized: "This listing expired before review. You can post again with a new pickup deadline.")
+        }
+        return String(localized: "Your listing and photo are private until a moderator approves them. Find the result here in My Listings.")
     }
 
     private var pickupDetailsCard: some View {

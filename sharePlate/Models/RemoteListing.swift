@@ -25,6 +25,8 @@ struct RemoteListing: Codable, Identifiable {
     let reservedUntil: Date?
     let waitlistUserIDs: [UUID]
     let pantryGCFDLocationID: Int?
+    let moderationStatus: String
+    let moderationReason: String?
 
     enum CodingKeys: String, CodingKey {
         case id, title, details, quantity, category, area, latitude, longitude, status
@@ -41,6 +43,8 @@ struct RemoteListing: Codable, Identifiable {
         case reservedUntil = "reserved_until"
         case waitlistUserIDs = "waitlist_user_ids"
         case pantryGCFDLocationID = "pantry_gcfd_location_id"
+        case moderationStatus = "moderation_status"
+        case moderationReason = "moderation_reason"
     }
 
     init(from decoder: Decoder) throws {
@@ -67,6 +71,8 @@ struct RemoteListing: Codable, Identifiable {
         reservedUntil = try container.decodeIfPresent(Date.self, forKey: .reservedUntil)
         waitlistUserIDs = Self.decodeUUIDArray(from: container, forKey: .waitlistUserIDs)
         pantryGCFDLocationID = try container.decodeIfPresent(Int.self, forKey: .pantryGCFDLocationID)
+        moderationStatus = try container.decodeIfPresent(String.self, forKey: .moderationStatus) ?? "pending"
+        moderationReason = try container.decodeIfPresent(String.self, forKey: .moderationReason)
     }
 
     private static func decodeDouble(

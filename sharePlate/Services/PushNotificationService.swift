@@ -48,11 +48,19 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
     }
 
     func uploadTokenIfNeeded() async {
-        guard PushNotificationConfiguration.isEnabled,
+        guard session?.allowsDataAccess == true, PushNotificationConfiguration.isEnabled,
               let token = deviceToken,
               let userIDString = session?.currentUserID,
               let userID = UUID(uuidString: userIDString) else { return }
         try? await SupabaseDeviceTokenService.upsert(userID: userID, token: token)
+    }
+
+    func clearLocalNotifications() async {
+        let center = UNUserNotificationCenter.current()
+        center.removeAllPendingNotificationRequests()
+        center.removeAllDeliveredNotifications()
+        try? await center.setBadgeCount(0)
+        LocalNotice.shared.pendingHandoffListingRemoteID = nil
     }
 
     func clearTokenOnSignOut() async {

@@ -6,9 +6,11 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct ListingPhotoView: View {
     @Environment(LocalDataStore.self) private var store
+    @Environment(SessionContext.self) private var session
 
     let listing: FoodListing
     var height: CGFloat?
@@ -21,7 +23,7 @@ struct ListingPhotoView: View {
         Group {
             if let image = resolvedImage {
                 styledImage(Image(uiImage: image))
-            } else if listing.photoURL != nil, !failedToLoad {
+            } else if canViewPhoto, listing.photoURL != nil, !failedToLoad {
                 loadingPlaceholder
             } else {
                 categoryPlaceholder
@@ -37,6 +39,7 @@ struct ListingPhotoView: View {
     }
 
     private var resolvedImage: UIImage? {
+        guard canViewPhoto else { return nil }
         if let localImage { return localImage }
         if let remoteImage { return remoteImage }
         if let stored = listing.photoURL, let cached = ListingPhotoCache.image(forKey: stored) {
@@ -109,6 +112,7 @@ struct ListingPhotoView: View {
     }
 
     private func loadRemotePhotoIfNeeded() async {
+        guard canViewPhoto else { return }
         guard resolvedImage == nil else { return }
         guard let stored = listing.photoURL, !stored.isEmpty else { return }
 
@@ -119,6 +123,7 @@ struct ListingPhotoView: View {
 
         do {
             let data = try await SupabasePhotoService.download(storedValue: stored)
+            guard !Task.isCancelled, session.allowsDataAccess, canViewPhoto, listing.modelContext != nil else { return }
             guard let image = UIImage(data: data) else {
                 failedToLoad = true
                 return
@@ -129,5 +134,9 @@ struct ListingPhotoView: View {
         } catch {
             failedToLoad = true
         }
+    }
+
+    private var canViewPhoto: Bool {
+        listing.isApprovedForSharing || session.matches(listing.postedByDeviceID)
     }
 }

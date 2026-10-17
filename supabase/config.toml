@@ -1,0 +1,5 @@
+project_id = "shareplate"
+
+# the handler verifies auth and supports secure retries after auth is deleted
+[functions.delete-account]
+verify_jwt = false

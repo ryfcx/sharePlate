@@ -8,6 +8,7 @@ import SwiftData
 
 struct ListingsView: View {
     @Environment(LocationManager.self) private var location
+    @Environment(LocalDataStore.self) private var store
     @Query(sort: \FoodListing.createdAt, order: .reverse) private var listings: [FoodListing]
 
     @State private var searchText = ""
@@ -19,9 +20,11 @@ struct ListingsView: View {
 
     private var listingsToken: Int {
         var hasher = Hasher()
+        for user in store.blockedUsers { hasher.combine(user.id) }
         for listing in listings {
             hasher.combine(listing.remoteID)
             hasher.combine(listing.statusRaw)
+            hasher.combine(listing.moderationStatusRaw)
         }
         return hasher.finalize()
     }
@@ -116,6 +119,8 @@ struct ListingsView: View {
     private func rebuildDisplayed() {
         let query = debouncedSearchText.trimmingCharacters(in: .whitespaces).lowercased()
         displayed = listings.filter { listing in
+            guard listing.isApprovedForSharing else { return false }
+            guard !store.isUserBlocked(listing.postedByDeviceID) else { return false }
             guard listing.effectiveStatus == .available else { return false }
             if query.isEmpty { return true }
             return listing.title.lowercased().contains(query)

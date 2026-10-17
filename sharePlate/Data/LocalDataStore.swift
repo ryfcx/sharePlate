@@ -11,18 +11,84 @@ import UIKit
 final class LocalDataStore: DataStore {
     private let context: ModelContext
     private let session: SessionContext
+    private var savedBlocks: [String: [BlockedUser]] = [:]
+    private var blocksRevision = 0
+    private let blockDefaults: UserDefaults
+    private let blockedUsersKey = "sharePlate.blockedUsers"
+
+    var blockedUsers: [BlockedUser] {
+        savedBlocks[session.identity.lowercased()] ?? []
+    }
+
+    func isUserBlocked(_ userID: String?) -> Bool {
+        guard let userID, let id = UUID(uuidString: userID) else { return false }
+        return blockedUsers.contains { $0.id == id }
+    }
+
+    func syncBlockedUsers() async {
+        guard session.allowsDataAccess else { return }
+        do {
+            let (_, owner) = try await authenticatedIdentity()
+            let revision = blocksRevision
+            let rows = try await UserBlockService.fetch()
+            guard session.allowsDataAccess, revision == blocksRevision,
+                  session.currentUserID?.lowercased() == owner.uuidString.lowercased() else { return }
+            saveBlocks(rows, owner: owner)
+        } catch {
+            // keep saved blocks when offline
+        }
+    }
+
+    func blockUser(_ userID: String, name: String) async throws {
+        let (_, owner) = try await authenticatedIdentity()
+        guard let target = UUID(uuidString: userID), target != owner else {
+            throw ReserveError.notAvailable
+        }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let row = try await UserBlockService.block(target,
+            name: trimmed.isEmpty ? String(localized: "Neighbor") : String(trimmed.prefix(50)), owner: owner)
+        var rows = savedBlocks[owner.uuidString.lowercased()] ?? []
+        rows.removeAll { $0.id == target }
+        rows.insert(row, at: 0)
+        saveBlocks(rows, owner: owner)
+        NearbyAlertService.removeListingAlerts(for: listings().filter {
+            UUID(uuidString: $0.postedByDeviceID) == target
+        })
+    }
+
+    func unblockUser(_ id: UUID) async throws {
+        let (_, owner) = try await authenticatedIdentity()
+        try await UserBlockService.unblock(id, owner: owner)
+        let rows = (savedBlocks[owner.uuidString.lowercased()] ?? []).filter { $0.id != id }
+        saveBlocks(rows, owner: owner)
+        await syncListings(force: true)
+    }
+
+    private func saveBlocks(_ rows: [BlockedUser], owner: UUID) {
+        blocksRevision += 1
+        savedBlocks[owner.uuidString.lowercased()] = rows
+        if let data = try? JSONEncoder().encode(savedBlocks) {
+            blockDefaults.set(data, forKey: blockedUsersKey)
+        }
+    }
 
     // remembers which data we imported so we refresh when it changes
-    private let resourceImportVersion = 7
+    private let resourceImportVersion = 8
     private let resourceImportVersionKey = "gcfdResourceImportVersion"
     private let seedSignatureKey = "gcfdDatasetSignature"
 
-    init(context: ModelContext, session: SessionContext) {
+    init(context: ModelContext, session: SessionContext, blockDefaults: UserDefaults = .standard) {
         self.context = context
         self.session = session
+        self.blockDefaults = blockDefaults
+        if let data = blockDefaults.data(forKey: blockedUsersKey),
+           let saved = try? JSONDecoder().decode([String: [BlockedUser]].self, from: data) {
+            savedBlocks = saved
+        }
     }
 
     func seedIfNeeded() {
+        guard session.allowsDataAccess else { return }
         let storedSignature = UserDefaults.standard.string(forKey: seedSignatureKey)
         let storedImportVersion = UserDefaults.standard.integer(forKey: resourceImportVersionKey)
         let currentSignature = GCFDDatabase.datasetVersion()
@@ -49,7 +115,6 @@ final class LocalDataStore: DataStore {
         } else {
             for location in gcfd {
                 let schedule = FoodResource.importedSchedule(
-                    locationID: location.locationID,
                     hours: location.hours,
                     intervals: location.intervals,
                     serviceHours: location.serviceHours
@@ -111,6 +176,7 @@ final class LocalDataStore: DataStore {
     }
 
     func runMaintenance() {
+        guard session.allowsDataAccess else { return }
         if let lastMaintenanceRun, Date().timeIntervalSince(lastMaintenanceRun) < 45 {
             return
         }
@@ -138,9 +204,12 @@ final class LocalDataStore: DataStore {
     }
 
     func syncListing(_ listing: FoodListing) async {
+        guard session.allowsDataAccess else { return }
+        let owner = session.identity
         guard let remoteID = listing.remoteID, let id = UUID(uuidString: remoteID) else { return }
         do {
             let remote = try await SupabaseListingService.fetch(id: id)
+            guard session.allowsDataAccess, session.identity == owner else { return }
             applyRemoteListing(remote)
             try? context.save()
         } catch {
@@ -153,6 +222,7 @@ final class LocalDataStore: DataStore {
     }
 
     func syncListings(force: Bool) async {
+        guard session.allowsDataAccess else { return }
         guard session.currentUserID != nil else { return }
 
         if !force, let lastListingsSync, Date().timeIntervalSince(lastListingsSync) < listingsSyncMinInterval {
@@ -176,9 +246,12 @@ final class LocalDataStore: DataStore {
     }
 
     func syncListing(remoteID: String) async {
+        guard session.allowsDataAccess else { return }
+        let owner = session.identity
         guard let id = UUID(uuidString: remoteID) else { return }
         do {
             let remote = try await SupabaseListingService.fetch(id: id)
+            guard session.allowsDataAccess, session.identity == owner else { return }
             applyRemoteListing(remote)
             try? context.save()
         } catch {
@@ -193,11 +266,15 @@ final class LocalDataStore: DataStore {
     private var completedListingRemoteIDs: Set<String> = []
 
     private func performListingsSync() async {
+        guard session.allowsDataAccess else { return }
+        let owner = session.identity
         do {
             let allRemoteRows = try await SupabaseListingService.fetchActive()
             if let completedIDs = await SupabaseListingService.fetchCompletedListingIDs() {
+                guard session.allowsDataAccess, session.identity == owner else { return }
                 completedListingRemoteIDs = Set(completedIDs.map(\.uuidString))
             }
+            guard session.allowsDataAccess, session.identity == owner else { return }
             let remoteRows = allRemoteRows.filter {
                 !completedListingRemoteIDs.contains($0.id.uuidString)
             }
@@ -224,6 +301,7 @@ final class LocalDataStore: DataStore {
                     let status = listing.effectiveStatus
                     guard involved, status == .reserved || status == .readyForPickup else { continue }
                     if let remote = try? await SupabaseListingService.fetch(id: id) {
+                        guard session.allowsDataAccess, session.identity == owner else { return }
                         applyRemoteListing(remote)
                         let remoteStatus = ListingStatus.from(raw: remote.status)
                         if remoteStatus != .pickedUp, remoteStatus != .expired {
@@ -243,6 +321,7 @@ final class LocalDataStore: DataStore {
     }
 
     func cachePhoto(_ listing: FoodListing, data: Data) {
+        guard session.allowsDataAccess, listing.modelContext != nil else { return }
         guard listing.photo == nil else { return }
         listing.photo = data
         if let url = listing.photoURL, let image = UIImage(data: data) {
@@ -265,6 +344,25 @@ final class LocalDataStore: DataStore {
         return (try? context.fetch(descriptor)) ?? []
     }
 
+    func erasePersonalData() throws {
+        inFlightListingsSync?.cancel()
+        inFlightListingsSync = nil
+        for listing in listings() { context.delete(listing) }
+        for report in try context.fetch(FetchDescriptor<ReportRecord>()) { context.delete(report) }
+        for claim in pantryClaims() { context.delete(claim) }
+        try context.save()
+        savedBlocks = [:]
+        blocksRevision += 1
+        blockDefaults.removeObject(forKey: blockedUsersKey)
+        completedListingRemoteIDs = []
+        lastListingsSync = nil
+        lastMaintenanceRun = nil
+        reapplyPantryClaimsToResources()
+        ListingPhotoCache.clear()
+        URLCache.shared.removeAllCachedResponses()
+        UserDefaults.standard.removeObject(forKey: "nearbyAlert.notifiedListingIDs")
+    }
+
 // pantry manager
 
     func pantryClaims() -> [PantryClaim] {
@@ -279,8 +377,11 @@ final class LocalDataStore: DataStore {
 
     // pull fresh claims and update the local spots
     func syncPantryClaims() async {
+        guard session.allowsDataAccess else { return }
+        let owner = session.identity
         guard session.currentUserID != nil else { return }
         guard let remote = try? await SupabasePantryClaimService.fetchAll() else { return }
+        guard session.allowsDataAccess, session.identity == owner else { return }
 
         let existingByID = Dictionary(uniqueKeysWithValues: pantryClaims().map { ($0.gcfdLocationID, $0) })
         var seenIDs = Set<Int>()
@@ -327,8 +428,10 @@ final class LocalDataStore: DataStore {
 
     // sign in quietly again if launch login failed
     private func authenticatedIdentity() async throws -> (userID: String, uuid: UUID) {
+        guard session.allowsDataAccess else { throw AccountDeletionError.unfinished }
         do {
             let authSession = try await SupabaseAuthService.ensureSession()
+            guard session.allowsDataAccess else { throw AccountDeletionError.unfinished }
             let uuid = authSession.user.id
             let userID = uuid.uuidString
             let identityChanged = session.currentUserID?.caseInsensitiveCompare(userID) != .orderedSame
@@ -440,9 +543,15 @@ final class LocalDataStore: DataStore {
         guard pickupInstructions.isReadyForConsumer else {
             throw PostListingError.missingPickupInstructions
         }
+        guard title.count <= 120, (pickupNotes?.count ?? 0) <= 1000,
+              pickupInstructions.providerNote.count <= 1000, photo.count <= 5 * 1024 * 1024 else {
+            throw ContentSubmissionError.contentTooLarge
+        }
 
         let instructionsPayload = ReservationCoordinationCodec.encode(pickupInstructions)
         let listingID = UUID()
+        let storedPhotoPath = try await SupabasePhotoService.upload(
+            listingID: listingID, userID: postedBy, data: photo)
         let payload = RemoteListingInsert(
             id: listingID,
             title: title,
@@ -452,7 +561,7 @@ final class LocalDataStore: DataStore {
             quantitySize: quantitySize.rawValue,
             pickupType: pickupType.rawValue,
             area: area,
-            photoURL: nil,
+            photoURL: storedPhotoPath,
             pickupAddress: pickupAddress,
             latitude: latitude,
             longitude: longitude,
@@ -464,29 +573,21 @@ final class LocalDataStore: DataStore {
             pantryGCFDLocationID: pantryGCFDLocationID
         )
 
-        let remote = try await SupabaseListingService.create(payload)
-
-        var storedPhotoPath: String?
-        storedPhotoPath = try await SupabasePhotoService.upload(
-            listingID: listingID,
-            userID: postedBy,
-            data: photo
-        )
-        try await SupabaseListingService.updatePhotoURL(id: listingID, photoURL: storedPhotoPath!)
-        try await SupabaseListingService.update(
-            id: listingID,
-            patch: RemoteListingUpdate(
-                status: nil,
-                photoURL: storedPhotoPath,
-                claimedBy: nil,
-                reservedUntil: nil,
-                waitlistUserIDs: nil,
-                contactInstructions: instructionsPayload,
-                pickupDeadline: nil,
-                details: nil,
-                quantity: nil
-            )
-        )
+        let remote: RemoteListing
+        do {
+            remote = try await SupabaseListingService.create(payload)
+        } catch {
+            // a lost response may still have saved the listing
+            if let saved = try? await SupabaseListingService.fetch(id: listingID) {
+                remote = saved
+            } else {
+                await SupabasePhotoService.removeUnattachedPhoto(path: storedPhotoPath)
+                throw error
+            }
+        }
+        guard session.allowsDataAccess, session.matches(userID) else {
+            throw ContentSubmissionError.sessionChanged
+        }
 
         let listing = FoodListing(
             title: title,
@@ -497,7 +598,7 @@ final class LocalDataStore: DataStore {
             pickupType: pickupType,
             area: area,
             photo: photo,
-            photoURL: storedPhotoPath ?? remote.photoURL,
+            photoURL: remote.photoURL,
             pickupAddress: pickupAddress,
             latitude: latitude,
             longitude: longitude,
@@ -512,15 +613,18 @@ final class LocalDataStore: DataStore {
             packageCount: packageCount,
             maxPackagesPerBooking: cappedMax,
             packagesRemaining: packageCount,
-            pantryGCFDLocationID: pantryGCFDLocationID
+            pantryGCFDLocationID: pantryGCFDLocationID,
+            moderationStatus: remote.moderationStatus,
+            moderationReason: remote.moderationReason
         )
         context.insert(listing)
         try? context.save()
-        await NearbyAlertService.notifyListingPosted(listing)
         return listing
     }
 
     func reserve(_ listing: FoodListing, packageCount requestedPackages: Int = 1, dropOff: DropOffReservationDetails? = nil) async throws {
+        guard listing.isApprovedForSharing else { throw ReserveError.notAvailable }
+        guard !isUserBlocked(listing.postedByDeviceID) else { throw ReserveError.notAvailable }
         if listing.isPermanent { throw ReserveError.notAvailable }
         let (userID, _) = try await authenticatedIdentity()
         guard let remoteID = listing.remoteID, let listingID = UUID(uuidString: remoteID) else {
@@ -681,6 +785,7 @@ final class LocalDataStore: DataStore {
     }
 
     func markPickedUp(_ listing: FoodListing) async throws {
+        guard listing.isApprovedForSharing else { throw ReserveError.notAvailable }
         guard listing.canMarkPickedUp(for: session) else {
             throw SyncError.remoteUpdateFailed(String(localized: "This handoff can't be completed right now."))
         }
@@ -763,12 +868,23 @@ final class LocalDataStore: DataStore {
         try? context.save()
     }
 
-    func report(_ listing: FoodListing, reason: ReportReason, notes: String?) {
+    func report(_ listing: FoodListing, reason: ReportReason, notes: String?) async throws {
+        guard let remoteID = listing.remoteID, let listingID = UUID(uuidString: remoteID) else {
+            throw ReportSubmissionError.listingUnavailable
+        }
+        guard !session.matches(listing.postedByDeviceID) else { throw ReportSubmissionError.ownListing }
+        let trimmed = notes?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard trimmed.unicodeScalars.count <= 1_000 else { throw ReportSubmissionError.notesTooLong }
+        let (userID, _) = try await authenticatedIdentity()
+        try await ListingReportService.submit(
+            listingID: listingID, reason: reason, notes: trimmed.isEmpty ? nil : trimmed)
+
+        // keep a local receipt only after the server accepts the report
         let report = ReportRecord(
-            listingID: listing.persistentModelID.storeIdentifier ?? UUID().uuidString,
+            listingID: listingID.uuidString,
             reason: reason,
-            notes: notes,
-            reportedByDeviceID: session.identity
+            notes: trimmed.isEmpty ? nil : trimmed,
+            reportedByDeviceID: userID
         )
         context.insert(report)
         try? context.save()
@@ -816,7 +932,9 @@ final class LocalDataStore: DataStore {
             reservedUntil: remote.reservedUntil,
             waitlistDeviceIDs: remote.waitlistUserIDs.map(\.uuidString),
             dropOffRadiusMeters: ListingDetailsCodec.decode(remote.details).dropOffRadiusMeters,
-            pantryGCFDLocationID: remote.pantryGCFDLocationID
+            pantryGCFDLocationID: remote.pantryGCFDLocationID,
+            moderationStatus: remote.moderationStatus,
+            moderationReason: remote.moderationReason
         )
         listing.syncPackageFieldsFromDetails()
         context.insert(listing)
@@ -842,6 +960,8 @@ final class LocalDataStore: DataStore {
         listing.waitlistDeviceIDs = remote.waitlistUserIDs.map(\.uuidString)
         listing.remoteID = remote.id.uuidString
         listing.photoURL = remote.photoURL
+        listing.moderationStatusRaw = remote.moderationStatus
+        listing.moderationReason = remote.moderationReason
         listing.syncPackageFieldsFromDetails()
 
 // online row wins for bookings
@@ -897,8 +1017,13 @@ final class LocalDataStore: DataStore {
     }
 
     func applyRemoteListing(_ remote: RemoteListing) {
+        guard session.allowsDataAccess else { return }
         let status = ListingStatus.from(raw: remote.status)
         let remoteID = remote.id.uuidString
+        if let existing = listing(withRemoteID: remoteID) {
+            existing.moderationStatusRaw = remote.moderationStatus
+            existing.moderationReason = remote.moderationReason
+        }
 
         if completedListingRemoteIDs.contains(remoteID) {
             markListingCompletedLocally(remoteID: remoteID)
@@ -937,6 +1062,16 @@ final class LocalDataStore: DataStore {
     func removeLocalListing(remoteID: String) {
         guard let listing = listing(withRemoteID: remoteID) else { return }
         context.delete(listing)
+        try? context.save()
+    }
+
+    func applyModerationChange(remoteID: String, status: String) {
+        guard session.allowsDataAccess, let listing = listing(withRemoteID: remoteID) else { return }
+        listing.moderationStatusRaw = status
+        if status != "approved", !session.matches(listing.postedByDeviceID) {
+            listing.photo = nil
+            NearbyAlertService.removeListingAlerts(for: [listing])
+        }
         try? context.save()
     }
 

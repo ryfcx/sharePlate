@@ -42,6 +42,7 @@ struct CreateListingView: View {
     @State private var photoLoadTask: Task<Void, Never>?
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var submittedForReview = false
 
     private let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
 
@@ -136,6 +137,11 @@ struct CreateListingView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(errorMessage ?? "")
+            }
+            .alert("This post needs review", isPresented: $submittedForReview) {
+                Button("OK") { dismiss() }
+            } message: {
+                Text("This post is private while we review it. You can check its status in My Listings.")
             }
             .sheet(isPresented: $showPickupMapPicker) {
                 MapLocationPicker(
@@ -462,14 +468,19 @@ struct CreateListingView: View {
     }
 
     private var postBar: some View {
-        Button {
-            submit()
-        } label: {
-            Label(isSaving ? "Posting…" : "Post Food", systemImage: "paperplane.fill")
+        VStack(spacing: Theme.Spacing.sm) {
+            Text("Most posts appear right away. Some need review.")
+                .font(AppFont.caption)
+                .foregroundStyle(Theme.Palette.mutedText)
+            Button {
+                submit()
+            } label: {
+                Label(isSaving ? "Posting…" : "Post Food", systemImage: "paperplane.fill")
+            }
+            .buttonStyle(PrimaryButtonStyle())
+            .disabled(!canSubmit || isSaving || isLoadingPhoto || submittedForReview)
+            .opacity(canSubmit && !isSaving && !isLoadingPhoto ? 1 : 0.5)
         }
-        .buttonStyle(PrimaryButtonStyle())
-        .disabled(!canSubmit || isSaving || isLoadingPhoto)
-        .opacity(canSubmit && !isSaving && !isLoadingPhoto ? 1 : 0.5)
         .padding(.horizontal, Theme.Spacing.lg)
         .padding(.vertical, Theme.Spacing.md)
         .background(Theme.Palette.backgroundCream)
@@ -591,6 +602,7 @@ struct CreateListingView: View {
 
         Task {
             do {
+                let postedListing: FoodListing
                 if handoffMode == .dropOff {
                     let area: String
                     if let pantryResource {
@@ -606,7 +618,7 @@ struct CreateListingView: View {
                         latitude: fallback.latitude,
                         longitude: fallback.longitude
                     )
-                    try await store.createListing(
+                    postedListing = try await store.createListing(
                         category: category,
                         customTitle: category == .other ? otherCategoryLabel.trimmingCharacters(in: .whitespaces) : nil,
                         packageCount: packageCount,
@@ -640,7 +652,7 @@ struct CreateListingView: View {
                         latitude: resolved.latitude,
                         longitude: resolved.longitude
                     )
-                    try await store.createListing(
+                    postedListing = try await store.createListing(
                         category: category,
                         customTitle: category == .other ? otherCategoryLabel.trimmingCharacters(in: .whitespaces) : nil,
                         packageCount: packageCount,
@@ -658,7 +670,11 @@ struct CreateListingView: View {
                     )
                 }
                 isSaving = false
-                dismiss()
+                if postedListing.isApprovedForSharing {
+                    dismiss()
+                } else {
+                    submittedForReview = true
+                }
             } catch {
                 isSaving = false
                 errorMessage = userFacingMessage(for: error)

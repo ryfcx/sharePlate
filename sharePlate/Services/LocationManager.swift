@@ -48,6 +48,12 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         manager.stopUpdatingLocation()
     }
 
+    func resetAfterDataDeletion() {
+        manager.stopUpdatingLocation()
+        manager.stopMonitoringSignificantLocationChanges()
+        userLocation = nil
+    }
+
     // map center is user location if known, else chicago
     var mapCenter: CLLocationCoordinate2D {
         userLocation ?? Self.chicago

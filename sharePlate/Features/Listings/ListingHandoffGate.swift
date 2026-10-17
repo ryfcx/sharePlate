@@ -10,6 +10,7 @@ import SwiftUI
 
 struct ListingHandoffGate: View {
     @Environment(SessionContext.self) private var session
+    @Environment(LocalDataStore.self) private var store
     @Bindable var listing: FoodListing
 
     @State private var lockedInHandoff = false
@@ -28,15 +29,33 @@ struct ListingHandoffGate: View {
 
     var body: some View {
         Group {
-            if showHandoff {
+            if !listing.isApprovedForSharing {
+                if isOwner {
+                    ProviderListingManageView(listing: listing)
+                } else {
+                    ContentUnavailableView("Listing unavailable", systemImage: "hand.raised",
+                        description: Text("This listing is not available for pickup."))
+                }
+            } else if showHandoff {
                 ActiveReservationView(listing: listing)
             } else if isOwner {
                 ProviderListingManageView(listing: listing)
+            } else if store.isUserBlocked(listing.postedByDeviceID) {
+                ContentUnavailableView("User blocked", systemImage: "person.crop.circle.badge.xmark",
+                    description: Text("You can manage blocked users in Settings."))
             } else {
                 ListingDetailView(listing: listing)
             }
         }
         .animation(nil, value: showHandoff)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                ReportListingButton(listing: listing)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                BlockUserButton(listing: listing)
+            }
+        }
         .onChange(of: isHandoff) { _, active in
             if active {
                 lockedInHandoff = true

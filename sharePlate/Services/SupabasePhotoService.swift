@@ -18,9 +18,13 @@ enum SupabasePhotoService {
             .upload(
                 path,
                 data: data,
-                options: FileOptions(contentType: "image/jpeg", upsert: true)
+                options: FileOptions(contentType: "image/jpeg", upsert: false)
             )
         return path
+    }
+
+    static func removeUnattachedPhoto(path: String) async {
+        _ = try? await client.storage.from(bucket).remove(paths: [path])
     }
 
     // downloads with authenticated storage api, works without public bucket

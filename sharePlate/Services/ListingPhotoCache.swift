@@ -19,6 +19,8 @@ enum ListingPhotoCache {
         cache.object(forKey: key as NSString)
     }
 
+    static func clear() { cache.removeAllObjects() }
+
     static func store(_ image: UIImage, forKey key: String) {
         let cost = Int(image.size.width * image.size.height * image.scale * image.scale)
         cache.setObject(image, forKey: key as NSString, cost: cost)
